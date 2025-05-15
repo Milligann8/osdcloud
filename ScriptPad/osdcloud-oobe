@@ -74,3 +74,7 @@ If (!(Test-Path "C:\ProgramData\OSDeploy")) {
     New-Item "C:\ProgramData\OSDeploy" -ItemType Directory -Force | Out-Null
 }
 $OOBEDeployJson | Out-File -FilePath "C:\ProgramData\OSDeploy\OSDeploy.OOBEDeploy.json" -Encoding ascii -Force
+
+Write-Host  -ForegroundColor Green "Restarting in 20 seconds!"
+Start-Sleep -Seconds 20
+wpeutil reboot
