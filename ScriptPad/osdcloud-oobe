@@ -2,15 +2,15 @@
 #   [PreOS] Update Module
 #================================================
 if ((Get-MyComputerModel) -match 'Virtual') {
-    Write-Host  -ForegroundColor Green "Setting Display Resolution to 1600x"
+    Write-Host -ForegroundColor Green "Setting Display Resolution to 1600x"
     Set-DisRes 1600
 }
 
 Write-Host -ForegroundColor Green "Updating OSD PowerShell Module"
-Install-Module -Name OSD -Force -SkipPublisherCheck
+Install-Module OSD -Force
 
-Write-Host  -ForegroundColor Green "Importing OSD PowerShell Module"
-Import-Module OSD -Force   
+Write-Host -ForegroundColor Green "Importing OSD PowerShell Module"
+Import-Module OSD -Force
 
 #=======================================================================
 #   [OS] Params and Start-OSDCloud
@@ -22,84 +22,79 @@ $Params = @{
     OSLanguage = "en-us"
     OSLicense = "Retail"
     ZTI = $true
-    Firmware = $true
 }
 Start-OSDCloud @Params
 
 #================================================
 #  [PostOS] OOBEDeploy Configuration
 #================================================
-Write-Host -ForegroundColor Green "Create C:\ProgramData\OSDeploy\OSDeploy.OOBEDeploy.json"
+Write-Host -ForegroundColor Green "Creating OSDeploy.OOBEDeploy.json..."
+
 $OOBEDeployJson = @'
 {
-    "RemoveAppx":  [
-                    "MicrosoftTeams",
-                    "Microsoft.BingWeather",
-                    "Microsoft.BingNews",
-                    "Microsoft.GamingApp",
-                    "Microsoft.GetHelp",
-                    "Microsoft.Getstarted",
-                    "Microsoft.Messaging",
-                    "Microsoft.MicrosoftOfficeHub",
-                    "Microsoft.MicrosoftSolitaireCollection",
-                    "Microsoft.MicrosoftStickyNotes",
-                    "Microsoft.MSPaint",
-                    "Microsoft.People",
-                    "Microsoft.PowerAutomateDesktop",
-                    "Microsoft.StorePurchaseApp",
-                    "Microsoft.Todos",
-                    "microsoft.windowscommunicationsapps",
-                    "Microsoft.WindowsFeedbackHub",
-                    "Microsoft.WindowsMaps",
-                    "Microsoft.WindowsSoundRecorder",
-                    "Microsoft.Xbox.TCUI",
-                    "Microsoft.XboxGameOverlay",
-                    "Microsoft.XboxGamingOverlay",
-                    "Microsoft.XboxIdentityProvider",
-                    "Microsoft.XboxSpeechToTextOverlay",
-                    "Microsoft.YourPhone",
-                    "Microsoft.ZuneMusic",
-                    "Microsoft.ZuneVideo"
-                   ],
-    "UpdateDrivers":  {
-                          "IsPresent":  true
-                      },
-    "UpdateWindows":  {
-                          "IsPresent":  true
-                      }
+    "RemoveAppx": [
+        "Microsoft.BingWeather",
+        "Microsoft.BingNews",
+        "Microsoft.GamingApp",
+        "Microsoft.GetHelp",
+        "Microsoft.Getstarted",
+        "Microsoft.Messaging",
+        "Microsoft.MicrosoftOfficeHub",
+        "Microsoft.MicrosoftSolitaireCollection",
+        "Microsoft.MicrosoftStickyNotes",
+        "Microsoft.MSPaint",
+        "Microsoft.People",
+        "Microsoft.PowerAutomateDesktop",
+        "Microsoft.StorePurchaseApp",
+        "Microsoft.Todos",
+        "Microsoft.WindowsCommunicationsApps",
+        "Microsoft.WindowsFeedbackHub",
+        "Microsoft.WindowsMaps",
+        "Microsoft.WindowsSoundRecorder",
+        "Microsoft.Xbox.TCUI",
+        "Microsoft.XboxGameOverlay",
+        "Microsoft.XboxGamingOverlay",
+        "Microsoft.XboxIdentityProvider",
+        "Microsoft.XboxSpeechToTextOverlay",
+        "Microsoft.YourPhone",
+        "Microsoft.ZuneMusic",
+        "Microsoft.ZuneVideo"
+    ],
+    "UpdateDrivers": {
+        "IsPresent": true
+    },
+    "UpdateWindows": {
+        "IsPresent": true
+    }
 }
 '@
-If (!(Test-Path "C:\ProgramData\OSDeploy")) {
+
+if (!(Test-Path "C:\ProgramData\OSDeploy")) {
     New-Item "C:\ProgramData\OSDeploy" -ItemType Directory -Force | Out-Null
 }
 $OOBEDeployJson | Out-File -FilePath "C:\ProgramData\OSDeploy\OSDeploy.OOBEDeploy.json" -Encoding ascii -Force
 
 #================================================
-#  [PostOS] AutopilotOOBE Configuration Staging
+#  [PostOS] Computername
 #================================================
 Write-Host -ForegroundColor Green "Define Computername:"
-$Serial = Get-WmiObject Win32_bios | Select-Object -ExpandProperty SerialNumber
+$Serial = (Get-WmiObject Win32_BIOS).SerialNumber
 $TargetComputername = $Serial.Substring(4,3)
-
-$AssignedComputerName = "Arivo - $TargetComputername"
+$AssignedComputerName = "Arivo-$TargetComputername"
 Write-Host -ForegroundColor Red $AssignedComputerName
 Write-Host ""
 
-
-
-
-
 #================================================
-#  [PostOS] AutopilotOOBE CMD Command Line
+#  [PostOS] OOBE.cmd
 #================================================
-Write-Host -ForegroundColor Green "Create C:\Windows\System32\Scripts\OOBE.cmd"
+Write-Host -ForegroundColor Green "Creating OOBE.cmd"
 $OOBECMD = @'
 PowerShell -NoL -Com Set-ExecutionPolicy RemoteSigned -Force
 Set Path = %PATH%;C:\Program Files\WindowsPowerShell\Scripts
 Start /Wait PowerShell -NoL -C Install-Module OSD -Force -Verbose
 Start /Wait PowerShell -NoL -C Invoke-WebPSScript 
 Start /Wait PowerShell -NoL -C Invoke-WebPSScript https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/keyboard-language.ps1
-Start /Wait PowerShell -NoL -C Start-OOBEDeploy
+Start /Wait PowerShell -NoL -C "Start-OOBEDeploy *> C:\ProgramData\OSDeploy\DeployLog.txt"
 Start /Wait PowerShell -NoL -C Invoke-WebPSScript https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/lenovo-bios.ps1
 Start /Wait PowerShell -NoL -C Invoke-WebPSScript https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/cleanup.ps1
 Start /Wait PowerShell -NoL -C Restart-Computer -Force
@@ -107,18 +102,21 @@ Start /Wait PowerShell -NoL -C Restart-Computer -Force
 $OOBECMD | Out-File -FilePath 'C:\Windows\System32\OOBE.cmd' -Encoding ascii -Force
 
 #================================================
-#  [PostOS] SetupComplete CMD Command Line
+#  [PostOS] SetupComplete.cmd
 #================================================
-Write-Host -ForegroundColor Green "Create C:\Windows\Setup\Scripts\SetupComplete.cmd"
+Write-Host -ForegroundColor Green "Creating SetupComplete.cmd"
 $SetupCompleteCMD = @'
 powershell.exe -Command Set-ExecutionPolicy RemoteSigned -Force
 powershell.exe -Command "& {IEX (IRM https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/oobetasks.ps1)}"
 '@
+if (!(Test-Path "C:\Windows\Setup\Scripts")) {
+    New-Item "C:\Windows\Setup\Scripts" -ItemType Directory -Force | Out-Null
+}
 $SetupCompleteCMD | Out-File -FilePath 'C:\Windows\Setup\Scripts\SetupComplete.cmd' -Encoding ascii -Force
 
 #=======================================================================
-#   Restart-Computer
+#   Restart to Continue OOBE
 #=======================================================================
-Write-Host  -ForegroundColor Green "Restarting in 20 seconds!"
+Write-Host -ForegroundColor Green "Restarting in 20 seconds..."
 Start-Sleep -Seconds 20
 wpeutil reboot
