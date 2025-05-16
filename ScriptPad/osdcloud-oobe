@@ -212,19 +212,26 @@ $UnattendXml = @'
     </settings>
     <settings pass="oobeSystem">
         <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+            <AutoLogon>
+                <Password>
+                    <Value>Test</Value>
+                    <PlainText>false</PlainText>
+                </Password>
+                <Enabled>true</Enabled>
+                <LogonCount>1</LogonCount>
+                <Username>ariadmin</Username>
+            </AutoLogon>
             <UserAccounts>
                 <LocalAccounts>
                     <LocalAccount wcm:action="add">
+                        <Name>ariadmin</Name>
+                        <Group>Administrators</Group>
                         <Password>
-                            <Value></Value>
+                            <Value>Test</Value>
                             <PlainText>false</PlainText>
                         </Password>
-                        <Description>Local User Account Created by Unattend</Description>
-                        <DisplayName>ariadmin</DisplayName>
-                        <Group>Users</Group>
-                        <Name>LocalUser</Name>
                     </LocalAccount>
-                    </LocalAccounts>
+                </LocalAccounts>
             </UserAccounts>
             <OOBE>
                 <HideEULAPage>true</HideEULAPage>
@@ -232,15 +239,13 @@ $UnattendXml = @'
                 <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
                 <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
                 <SkipUserOOBE>true</SkipUserOOBE>
-                <SkipMachineOOBE>true</SkipMachineOOBE>
+                <SkipMachineOOBE>true</SkipUserOOBE>
             </OOBE>
             <TimeZone>Mountain Standard Time</TimeZone>
         </component>
     </settings>
 </unattend>
 '@ 
-# Get-OSDGather -Property IsWinPE
-
 if (-NOT (Test-Path 'C:\Windows\Panther')) {
     New-Item -Path 'C:\Windows\Panther'-ItemType Directory -Force -ErrorAction Stop | Out-Null
 }
