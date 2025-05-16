@@ -1,118 +1,241 @@
-# oobetasks
+# oobe.osdcloud.ch - needs to be here for blog post on akosbakos.ch
 
-$scriptFolderPath = "$env:SystemDrive\OSDCloud\Scripts"
-$ScriptPathOOBE = $(Join-Path -Path $scriptFolderPath -ChildPath "OOBE.ps1")
-$ScriptPathSendKeys = $(Join-Path -Path $scriptFolderPath -ChildPath "SendKeys.ps1")
+[CmdletBinding()]
+param()
+#=================================================
+#Script Information
 
-If(!(Test-Path -Path $scriptFolderPath)) {
-    New-Item -Path $scriptFolderPath -ItemType Directory -Force | Out-Null
+#=================================================
+#region Initialize
+
+#Start the Transcript
+$Transcript = "$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-OSDCloud.log"
+$null = Start-Transcript -Path (Join-Path "$env:SystemRoot\Temp" $Transcript) -ErrorAction Ignore
+
+#=================================================
+#   oobeCloud Settings
+#=================================================
+$Global:oobeCloud = @{
+    oobeSetDisplay = $true
+    oobeSetRegionLanguage = $true
+    oobeSetDateTime = $true
+    oobeRemoveAppxPackage = $true
+    oobeRemoveAppxPackageName = 'CommunicationsApps','OfficeHub','People','Skype','Solitaire','Xbox','ZuneMusic','ZuneVideo'
+    oobeUpdateDrivers = $true
+    oobeUpdateWindows = $true
+    oobeRestartComputer = $true
+    oobeStopComputer = $false
 }
 
-$OOBEScript =@"
-`$Global:Transcript = "`$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-OOBEScripts.log"
-Start-Transcript -Path (Join-Path "`$env:ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD\" `$Global:Transcript) -ErrorAction Ignore | Out-Null
+function Step-KeyboardLanguage {
+
+    Write-Host -ForegroundColor Green "Set keyboard language to de-CH"
+    Start-Sleep -Seconds 5
+    
+    $LanguageList = Get-WinUserLanguageList
+    
+    $LanguageList.Add("de-CH")
+    Set-WinUserLanguageList $LanguageList -Force
+    
+    Start-Sleep -Seconds 5
+    
+    $LanguageList = Get-WinUserLanguageList
+    $LanguageList.Remove(($LanguageList | Where-Object LanguageTag -like 'en-US'))
+    Set-WinUserLanguageList $LanguageList -Force | Out-Null
+}
+function Step-oobeSetDisplay {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeSetDisplay -eq $true)) {
+        Write-Host -ForegroundColor Yellow 'Verify the Display Resolution and Scale is set properly'
+        Start-Process 'ms-settings:display' | Out-Null
+        $ProcessId = (Get-Process -Name 'SystemSettings').Id
+        if ($ProcessId) {
+            Wait-Process $ProcessId
+        }
+    }
+}
+function Step-oobeSetRegionLanguage {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeSetRegionLanguage -eq $true)) {
+        Write-Host -ForegroundColor Yellow 'Verify the Language, Region, and Keyboard are set properly'
+        Start-Process 'ms-settings:regionlanguage' | Out-Null
+        $ProcessId = (Get-Process -Name 'SystemSettings').Id
+        if ($ProcessId) {
+            Wait-Process $ProcessId
+        }
+    }
+}
+function Step-oobeSetDateTime {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeSetDateTime -eq $true)) {
+        Write-Host -ForegroundColor Yellow 'Verify the Date and Time is set properly including the Time Zone'
+        Write-Host -ForegroundColor Yellow 'If this is not configured properly, Certificates and Domain Join may fail'
+        Start-Process 'ms-settings:dateandtime' | Out-Null
+        $ProcessId = (Get-Process -Name 'SystemSettings').Id
+        if ($ProcessId) {
+            Wait-Process $ProcessId
+        }
+    }
+}
+function Step-oobeExecutionPolicy {
+    [CmdletBinding()]
+    param ()
+    if ($env:UserName -eq 'defaultuser0') {
+        if ((Get-ExecutionPolicy) -ne 'RemoteSigned') {
+            Write-Host -ForegroundColor Cyan 'Set-ExecutionPolicy RemoteSigned'
+            Set-ExecutionPolicy RemoteSigned -Force
+        }
+    }
+}
+function Step-oobePackageManagement {
+    [CmdletBinding()]
+    param ()
+    if ($env:UserName -eq 'defaultuser0') {
+        if (Get-Module -Name PowerShellGet -ListAvailable | Where-Object {$_.Version -ge '2.2.5'}) {
+            Write-Host -ForegroundColor Cyan 'PowerShellGet 2.2.5 or greater is installed'
+        }
+        else {
+            Write-Host -ForegroundColor Cyan 'Install-Package PackageManagement,PowerShellGet'
+            Install-Package -Name PowerShellGet -MinimumVersion 2.2.5 -Force -Confirm:$false -Source PSGallery | Out-Null
+    
+            Write-Host -ForegroundColor Cyan 'Import-Module PackageManagement,PowerShellGet'
+            Import-Module PackageManagement,PowerShellGet -Force
+        }
+    }
+}
+function Step-oobeTrustPSGallery {
+    [CmdletBinding()]
+    param ()
+    if ($env:UserName -eq 'defaultuser0') {
+        $PSRepository = Get-PSRepository -Name PSGallery
+        if ($PSRepository)
+        {
+            if ($PSRepository.InstallationPolicy -ne 'Trusted')
+            {
+                Write-Host -ForegroundColor Cyan 'Set-PSRepository PSGallery Trusted'
+                Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+            }
+        }
+    }
+}
 
 
-Write-Host -ForegroundColor DarkGray "Installing OSD PS Module"
-Start-Process PowerShell -ArgumentList "-NoL -C Install-Module OSD -Force -Verbose" -Wait
 
-Write-Host -ForegroundColor DarkGray "Executing Keyboard Language Skript"
-Start-Process PowerShell -ArgumentList "-NoL -C Invoke-WebPSScript https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/keyboard-language.ps1" -Wait
+function Step-oobeRemoveAppxPackage {
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeRemoveAppxPackage -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Removing Appx Packages'
+        foreach ($Item in $Global:oobeCloud.oobeRemoveAppxPackageName) {
+            if (Get-Command Get-AppxProvisionedPackage) {
+                Get-AppxProvisionedPackage -Online | Where-Object {$_.DisplayName -Match $Item} | ForEach-Object {
+                    Write-Host -ForegroundColor DarkGray $_.DisplayName
+                    if ((Get-Command Remove-AppxProvisionedPackage).Parameters.ContainsKey('AllUsers')) {
+                        Try
+                        {
+                            $null = Remove-AppxProvisionedPackage -Online -AllUsers -PackageName $_.PackageName
+                        }
+                        Catch
+                        {
+                            Write-Warning "AllUsers Appx Provisioned Package $($_.PackageName) did not remove successfully"
+                        }
+                    }
+                    else {
+                        Try
+                        {
+                            $null = Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName
+                        }
+                        Catch
+                        {
+                            Write-Warning "Appx Provisioned Package $($_.PackageName) did not remove successfully"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
-Write-Host -ForegroundColor DarkGray "Executing Product Key Script"
-Start-Process PowerShell -ArgumentList "-NoL -C Invoke-WebPSScript https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/embeddedkey.ps1" -Wait
+function Step-oobeUpdateDrivers {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeUpdateDrivers -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Updating Windows Drivers'
+        if (!(Get-Module PSWindowsUpdate -ListAvailable -ErrorAction Ignore)) {
+            try {
+                Install-Module PSWindowsUpdate -Force
+                Import-Module PSWindowsUpdate -Force
+            }
+            catch {
+                Write-Warning 'Unable to install PSWindowsUpdate Driver Updates'
+            }
+        }
+        if (Get-Module PSWindowsUpdate -ListAvailable -ErrorAction Ignore) {
+            Start-Process PowerShell.exe -ArgumentList "-Command Install-WindowsUpdate -UpdateType Driver -AcceptAll -IgnoreReboot" -Wait
+        }
+    }
+}
+function Step-oobeUpdateWindows {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeUpdateWindows -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Updating Windows'
+        if (!(Get-Module PSWindowsUpdate -ListAvailable)) {
+            try {
+                Install-Module PSWindowsUpdate -Force
+                Import-Module PSWindowsUpdate -Force
+            }
+            catch {
+                Write-Warning 'Unable to install PSWindowsUpdate Windows Updates'
+            }
+        }
+        if (Get-Module PSWindowsUpdate -ListAvailable -ErrorAction Ignore) {
+            #Write-Host -ForegroundColor DarkCyan 'Add-WUServiceManager -MicrosoftUpdate -Confirm:$false'
+            Add-WUServiceManager -MicrosoftUpdate -Confirm:$false | Out-Null
+            #Write-Host -ForegroundColor DarkCyan 'Install-WindowsUpdate -UpdateType Software -AcceptAll -IgnoreReboot'
+            #Install-WindowsUpdate -UpdateType Software -AcceptAll -IgnoreReboot -NotTitle 'Malicious'
+            #Write-Host -ForegroundColor DarkCyan 'Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -IgnoreReboot'
+            Start-Process PowerShell.exe -ArgumentList "-Command Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -IgnoreReboot -NotTitle 'Preview' -NotKBArticleID 'KB890830','KB5005463','KB4481252'" -Wait
+        }
+    }
+}
 
 
+function Step-oobeRestartComputer {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeRestartComputer -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Build Complete!'
+        Write-Warning 'Device will restart in 30 seconds.  Press Ctrl + C to cancel'
+        Stop-Transcript
+        Start-Sleep -Seconds 30
+        Restart-Computer
+    }
+}
+function Step-oobeStopComputer {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeStopComputer -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Build Complete!'
+        Write-Warning 'Device will shutdown in 30 seconds. Press Ctrl + C to cancel'
+        Stop-Transcript
+        Start-Sleep -Seconds 30
+        Stop-Computer
+    }
+}
+#endregion
 
-Write-Host -ForegroundColor DarkGray "Executing OOBEDeploy Script fomr OSDCloud Module"
-Start-Process PowerShell -ArgumentList "-NoL -C Start-OOBEDeploy" -Wait
-
-Write-Host -ForegroundColor DarkGray "Executing Cleanup Script"
-Start-Process PowerShell -ArgumentList "-NoL -C Invoke-WebPSScript https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/cleanup.ps1" -Wait
-
-# Cleanup scheduled Tasks
-Write-Host -ForegroundColor DarkGray "Unregistering Scheduled Tasks"
-Unregister-ScheduledTask -TaskName "Scheduled Task for SendKeys" -Confirm:`$false
-Unregister-ScheduledTask -TaskName "Scheduled Task for OSDCloud post installation" -Confirm:`$false
-
-Write-Host -ForegroundColor DarkGray "Restarting Computer"
-Start-Process PowerShell -ArgumentList "-NoL -C Restart-Computer -Force" -Wait
-
-Stop-Transcript -Verbose | Out-File
-"@
-
-Out-File -FilePath $ScriptPathOOBE -InputObject $OOBEScript -Encoding ascii
-
-$SendKeysScript = @"
-`$Global:Transcript = "`$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-SendKeys.log"
-Start-Transcript -Path (Join-Path "`$env:ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD\" `$Global:Transcript) -ErrorAction Ignore | Out-Null
-
-Write-Host -ForegroundColor DarkGray "Stop Debug-Mode (SHIFT + F10) with WscriptShell.SendKeys"
-`$WscriptShell = New-Object -com Wscript.Shell
-
-# ALT + TAB
-Write-Host -ForegroundColor DarkGray "SendKeys: ALT + TAB"
-`$WscriptShell.SendKeys("%({TAB})")
-
-Start-Sleep -Seconds 1
-
-# Shift + F10
-Write-Host -ForegroundColor DarkGray "SendKeys: SHIFT + F10"
-`$WscriptShell.SendKeys("+({F10})")
-
-Stop-Transcript -Verbose | Out-File
-"@
-
-Out-File -FilePath $ScriptPathSendKeys -InputObject $SendKeysScript -Encoding ascii
-
-# Download ServiceUI.exe
-Write-Host -ForegroundColor Gray "Download ServiceUI.exe from GitHub Repo"
-Invoke-WebRequest https://github.com/Milligann8/osdcloud/raw/refs/heads/main/ScriptPad/ServiceUI.exe -OutFile "C:\OSDCloud\ServiceUI.exe"
-
-#Create Scheduled Task for SendKeys with 15 seconds delay
-$TaskName = "Scheduled Task for SendKeys"
-
-$ShedService = New-Object -comobject 'Schedule.Service'
-$ShedService.Connect()
-
-$Task = $ShedService.NewTask(0)
-$Task.RegistrationInfo.Description = $taskName
-$Task.Settings.Enabled = $true
-$Task.Settings.AllowDemandStart = $true
-
-# https://msdn.microsoft.com/en-us/library/windows/desktop/aa383987(v=vs.85).aspx
-$trigger = $task.triggers.Create(9) # 0 EventTrigger, 1 TimeTrigger, 2 DailyTrigger, 3 WeeklyTrigger, 4 MonthlyTrigger, 5 MonthlyDOWTrigger, 6 IdleTrigger, 7 RegistrationTrigger, 8 BootTrigger, 9 LogonTrigger
-$trigger.Delay = 'PT15S'
-$trigger.Enabled = $true
-
-$action = $Task.Actions.Create(0)
-$action.Path = 'C:\OSDCloud\ServiceUI.exe'
-$action.Arguments = '-process:RuntimeBroker.exe C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe ' + $ScriptPathSendKeys + ' -NoExit'
-
-$taskFolder = $ShedService.GetFolder("\")
-# https://msdn.microsoft.com/en-us/library/windows/desktop/aa382577(v=vs.85).aspx
-$taskFolder.RegisterTaskDefinition($TaskName, $Task , 6, "SYSTEM", $NULL, 5)
-
-# Create Scheduled Task for OSDCloud post installation with 20 seconds delay
-$TaskName = "Scheduled Task for OSDCloud post installation"
-
-$ShedService = New-Object -comobject 'Schedule.Service'
-$ShedService.Connect()
-
-$Task = $ShedService.NewTask(0)
-$Task.RegistrationInfo.Description = $taskName
-$Task.Settings.Enabled = $true
-$Task.Settings.AllowDemandStart = $true
-
-# https://msdn.microsoft.com/en-us/library/windows/desktop/aa383987(v=vs.85).aspx
-$trigger = $task.triggers.Create(9) # 0 EventTrigger, 1 TimeTrigger, 2 DailyTrigger, 3 WeeklyTrigger, 4 MonthlyTrigger, 5 MonthlyDOWTrigger, 6 IdleTrigger, 7 RegistrationTrigger, 8 BootTrigger, 9 LogonTrigger
-$trigger.Delay = 'PT20S'
-$trigger.Enabled = $true
-
-$action = $Task.Actions.Create(0)
-$action.Path = 'C:\OSDCloud\ServiceUI.exe'
-$action.Arguments = '-process:RuntimeBroker.exe C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe ' + $ScriptPathOOBE + ' -NoExit'
-
-$taskFolder = $ShedService.GetFolder("\")
-# https://msdn.microsoft.com/en-us/library/windows/desktop/aa382577(v=vs.85).aspx
-$taskFolder.RegisterTaskDefinition($TaskName, $Task , 6, "SYSTEM", $NULL, 5)
+# Execute functions
+Step-KeyboardLanguage
+Step-oobeExecutionPolicy
+Step-oobeTrustPSGallery
+Step-oobeSetDisplay
+Step-oobeSetRegionLanguage
+Step-oobeSetDateTime
+Step-oobeRemoveAppxPackage
+Step-oobeUpdateDrivers
+Step-oobeUpdateWindows
+Step-oobeRestartComputer
+Step-oobeStopComputer
+#=================================================
