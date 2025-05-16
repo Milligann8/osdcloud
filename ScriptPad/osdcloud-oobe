@@ -1,124 +1,310 @@
-#================================================
-#   [PreOS] Update Module
-#================================================
-if ((Get-MyComputerModel) -match 'Virtual') {
-    Write-Host  -ForegroundColor Green "Setting Display Resolution to 1600x"
-    Set-DisRes 1600
+<#
+.SYNOPSIS
+    OSDCloud Logic for PreOS, OS and PostOS Tasks
+.DESCRIPTION
+    This script is used to perform PreOS, OS and PostOS tasks for OSDCloud.
+    It includes the following tasks:
+    - Update OSD PowerShell Module
+    - Import OSD PowerShell Module
+    - Install and configure firmware updates
+    - Define Autopilot attributes
+    - Setup Unattend.xml for specialize phase
+    - Execute OOBE and cleanup scripts
+    - Move OSDCloud logs to IntuneManagementExtension
+    - Restart the system if not in development mode
+
+.NOTES
+    Version:		0.1
+    Creation Date:  23.04.2025
+    Author:			Akos Bakos
+    Company:        SmartCon GmbH
+    Contact:		akos.bakos@smartcon.ch
+
+    Copyright (c) 2025 SmartCon GmbH
+
+HISTORY:
+Date			By			Comments
+----------		---			----------------------------------------------------------
+23.04.2025		Akos Bakos	Script created
+
+#>
+
+if (-NOT (Test-Path 'X:\OSDCloud\Logs')) {
+    New-Item -Path 'X:\OSDCloud\Logs' -ItemType Directory -Force -ErrorAction Stop | Out-Null
 }
 
-Write-Host -ForegroundColor Green "Updating OSD PowerShell Module"
-Install-Module -Name OSD -Force -SkipPublisherCheck
+#Transport Layer Security (TLS) 1.2
+Write-Host -ForegroundColor Green "Transport Layer Security (TLS) 1.2"
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+#[System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultCredentials
 
-Write-Host  -ForegroundColor Green "Importing OSD PowerShell Module"
-Import-Module OSD -Force   
+$Transcript = "$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-Start-OSDCloudLogic.log"
+Start-Transcript -Path (Join-Path "X:\OSDCloud\Logs" $Transcript) -ErrorAction Ignore | Out-Null
 
+#================================================
+Write-Host -ForegroundColor DarkGray "========================================================================="
+Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
+Write-Host -ForegroundColor Cyan "[PreOS] Update Module"
+#================================================
+# Write-Host -ForegroundColor Green "Updating OSD PowerShell Module"
+# Install-Module OSD -Force
+
+Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
+Write-Host -ForegroundColor Green "Importing OSD PowerShell Module"
+Import-Module OSD -Force
+
+Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
+Write-Host -ForegroundColor Green "PSCloudScript at functions.osdcloud.com"
+Invoke-Expression (Invoke-RestMethod -Uri functions.osdcloud.com)
+
+#region Helper Functions
+function Write-DarkGrayDate {
+    [CmdletBinding()]
+    param (
+        [Parameter(Position=0)]
+        [System.String]
+        $Message
+    )
+    if ($Message) {
+        Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) $Message"
+    }
+    else {
+        Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
+    }
+}
+function Write-DarkGrayHost {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true, Position=0)]
+        [System.String]
+        $Message
+    )
+    Write-Host -ForegroundColor DarkGray $Message
+}
+function Write-DarkGrayLine {
+    [CmdletBinding()]
+    param ()
+    Write-Host -ForegroundColor DarkGray "========================================================================="
+}
+function Write-SectionHeader {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true, Position=0)]
+        [System.String]
+        $Message
+    )
+    Write-DarkGrayLine
+    Write-DarkGrayDate
+    Write-Host -ForegroundColor Cyan $Message
+}
+function Write-SectionSuccess {
+    [CmdletBinding()]
+    param (
+        [Parameter(Position=0)]
+        [System.String]
+        $Message = 'Success!'
+    )
+    Write-DarkGrayDate
+    Write-Host -ForegroundColor Green $Message
+}
+
+
+
+#region OS Tasks
 #=======================================================================
-#   [OS] Params and Start-OSDCloud
+Write-SectionHeader "[OS] Params and Start-OSDCloud"
 #=======================================================================
 $Params = @{
-    OSVersion = "Windows 11"
-    OSBuild = "24H2"
-    OSEdition = "Pro"
-    OSLanguage = "en-us"
-    OSLicense = "Retail"
-    ZTI = $true
-    Firmware = $true
+    OSVersion   = "Windows 11"
+    OSBuild     = "24H2"
+    OSEdition   = "Pro"
+    OSLanguage  = "en-us"
+    OSLicense   = "Retail"
+    ZTI         = $true
+    Firmware    = $true
 }
+Write-Host ($Params | Out-String)
 Start-OSDCloud @Params
+#endregion
 
 #================================================
-#  [PostOS] OOBEDeploy Configuration
-#================================================
-Write-Host -ForegroundColor Green "Create C:\ProgramData\OSDeploy\OSDeploy.OOBEDeploy.json"
-$OOBEDeployJson = @'
-{
-    "RemoveAppx":  [
-                    "MicrosoftTeams",
-                    "Microsoft.BingWeather",
-                    "Microsoft.BingNews",
-                    "Microsoft.GamingApp",
-                    "Microsoft.GetHelp",
-                    "Microsoft.Getstarted",
-                    "Microsoft.Messaging",
-                    "Microsoft.MicrosoftOfficeHub",
-                    "Microsoft.MicrosoftSolitaireCollection",
-                    "Microsoft.MicrosoftStickyNotes",
-                    "Microsoft.MSPaint",
-                    "Microsoft.People",
-                    "Microsoft.PowerAutomateDesktop",
-                    "Microsoft.StorePurchaseApp",
-                    "Microsoft.Todos",
-                    "microsoft.windowscommunicationsapps",
-                    "Microsoft.WindowsFeedbackHub",
-                    "Microsoft.WindowsMaps",
-                    "Microsoft.WindowsSoundRecorder",
-                    "Microsoft.Xbox.TCUI",
-                    "Microsoft.XboxGameOverlay",
-                    "Microsoft.XboxGamingOverlay",
-                    "Microsoft.XboxIdentityProvider",
-                    "Microsoft.XboxSpeechToTextOverlay",
-                    "Microsoft.YourPhone",
-                    "Microsoft.ZuneMusic",
-                    "Microsoft.ZuneVideo"
-                   ],
-    "UpdateDrivers":  {
-                          "IsPresent":  true
-                      },
-    "UpdateWindows":  {
-                          "IsPresent":  true
-                      }
+Write-DarkGrayHost "Define Computername"
+$Serial = Get-WmiObject Win32_bios | Select-Object -ExpandProperty SerialNumber
+$lastFourChars = $serial.Substring($serial.Length - 4)
+#$AssignedComputerName = "NB-2$lastFourChars"
+
+$ChassisType = (Get-WmiObject -Query "SELECT * FROM Win32_SystemEnclosure").ChassisTypes
+$HyperV = Get-WmiObject -Query "SELECT * FROM Win32_ComputerSystem WHERE Manufacturer LIKE '%Microsoft Corporation%' AND Model LIKE '%Virtual Machine%'"
+$VMware = Get-WmiObject -Query "SELECT * FROM Win32_ComputerSystem WHERE Manufacturer LIKE '%VMware%' AND Model LIKE '%VMware%'"
+
+If ($HyperV -or $VMware) {
+    $HW         = "VM"
 }
-'@
+
+If ($ChassisType -eq "8" -or`
+    $ChassisType -eq "9" -or`
+    $ChassisType -eq "10" -or`
+    $ChassisType -eq "11" -or`
+    $ChassisType -eq "12" -or`
+    $ChassisType -eq "14" -or`
+    $ChassisType -eq "18" -or`
+    $ChassisType -eq "21" -or`
+    $ChassisType -eq "31") {
+    $HW = "NB"
+}
+
+elseif ($ChassisType -eq "3" -or`
+    $ChassisType -eq "4" -or`
+    $ChassisType -eq "5" -or`
+    $ChassisType -eq "6" -or`
+    $ChassisType -eq "7" -or`
+    $ChassisType -eq "15" -or`
+    $ChassisType -eq "16" -or`
+    $ChassisType -eq "35") {
+    $HW = "PC"
+}
+
+If (!($HW)) {
+    $AssignedComputerName = "RENAME_ME$Serial"
+}
+else {
+    $AssignedComputerName = "$HW-2$lastFourChars"        
+}
+
+
+Write-Host -ForegroundColor Yellow "Computername: $AssignedComputerName"
+
+#================================================
+Write-SectionHeader "[PostOS] AutopilotOOBE Configuration"
+#================================================
+
 If (!(Test-Path "C:\ProgramData\OSDeploy")) {
     New-Item "C:\ProgramData\OSDeploy" -ItemType Directory -Force | Out-Null
 }
-$OOBEDeployJson | Out-File -FilePath "C:\ProgramData\OSDeploy\OSDeploy.OOBEDeploy.json" -Encoding ascii -Force
 
+
+#region Specialize Tasks
 #================================================
-#  [PostOS] AutopilotOOBE Configuration Staging
+Write-SectionHeader "[PostOS] SetupComplete CMD Command Line"
 #================================================
-Write-Host -ForegroundColor Green "Define Computername:"
-$Serial = Get-WmiObject Win32_bios | Select-Object -ExpandProperty SerialNumber
-$TargetComputername = $Serial.Substring(4,3)
+Write-DarkGrayHost "Cleanup SetupComplete Files from OSDCloud Module"
+Get-ChildItem -Path 'C:\Windows\Setup\Scripts\SetupComplete*' -Recurse | Remove-Item -Force
 
-$AssignedComputerName = "Arivo-$TargetComputername"
-Write-Host -ForegroundColor Red $AssignedComputerName
-Write-Host ""
+#=================================================
+Write-SectionHeader "[PostOS] Define Specialize Phase"
+#=================================================
+$UnattendXml = @'
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+    <settings pass="windowsPE">
+        <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="en-US" versionScope="nonSxS">
+            <InputLocale>en-US</InputLocale>
+            <SystemLocale>en-US</SystemLocale>
+            <UILanguage>en-US</UILanguage>
+            <UILanguageFallback>en-US</UILanguageFallback>
+            <UserLocale>en-US</UserLocale>
+        </component>
+    </settings>
+    <settings pass="specialize">
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+            <ComputerName>*</ComputerName>
+        </component>
+    </settings>
+    <settings pass="oobeSystem">
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+            <UserAccounts>
+                <LocalAccounts>
+                    <LocalAccount wcm:action="add">
+                        <Password>
+                            <Value></Value>
+                            <PlainText>false</PlainText>
+                        </Password>
+                        <Description>Local User Account Created by Unattend</Description>
+                        <DisplayName>ariadmin</DisplayName>
+                        <Group>Users</Group>
+                        <Name>LocalUser</Name>
+                    </LocalAccount>
+                    </LocalAccounts>
+            </UserAccounts>
+            <OOBE>
+                <HideEULAPage>true</HideEULAPage>
+                <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+                <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+                <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+                <SkipUserOOBE>true</SkipUserOOBE>
+                <SkipMachineOOBE>true</SkipMachineOOBE>
+            </OOBE>
+            <TimeZone>Mountain Standard Time</TimeZone>
+        </component>
+    </settings>
+</unattend>
+'@ 
+# Get-OSDGather -Property IsWinPE
 
+if (-NOT (Test-Path 'C:\Windows\Panther')) {
+    New-Item -Path 'C:\Windows\Panther'-ItemType Directory -Force -ErrorAction Stop | Out-Null
+}
 
+$Panther = 'C:\Windows\Panther'
+$UnattendPath = "$Panther\Unattend.xml"
+$UnattendXml | Out-File -FilePath $UnattendPath -Encoding utf8 -Width 2000 -Force
 
+Write-DarkGrayHost "Use-WindowsUnattend -Path 'C:\' -UnattendPath $UnattendPath"
+Use-WindowsUnattend -Path 'C:\' -UnattendPath $UnattendPath | Out-Null
+#endregion
 
-
+#region OOBE Tasks
 #================================================
-#  [PostOS] AutopilotOOBE CMD Command Line
+Write-SectionHeader "[PostOS] OOBE CMD Command Line"
 #================================================
-Write-Host -ForegroundColor Green "Create C:\Windows\System32\Scripts\OOBE.cmd"
-$OOBECMD = @'
-PowerShell -NoL -Com Set-ExecutionPolicy RemoteSigned -Force
-Set Path = %PATH%;C:\Program Files\WindowsPowerShell\Scripts
-Start /Wait PowerShell -NoL -C Install-Module OSD -Force -Verbose
-Start /Wait PowerShell -NoL -C Invoke-WebPSScript 
-Start /Wait PowerShell -NoL -C Invoke-WebPSScript https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/keyboard-language.ps1
-Start /Wait PowerShell -NoL -C Start-OOBEDeploy
-Start /Wait PowerShell -NoL -C Invoke-WebPSScript https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/lenovo-bios.ps1
-Start /Wait PowerShell -NoL -C Invoke-WebPSScript https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/cleanup.ps1
-Start /Wait PowerShell -NoL -C Restart-Computer -Force
+Write-DarkGrayHost "Downloading Scripts for OOBE and specialize phase"
+
+#Invoke-RestMethod http://autopilot.osdcloud.ch | Out-File -FilePath 'C:\Windows\Setup\scripts\autopilot.ps1' -Encoding ascii -Force
+Invoke-RestMethod https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/oobetasks.ps1 | Out-File -FilePath 'C:\Windows\Setup\scripts\oobe.ps1' -Encoding ascii -Force
+Invoke-RestMethod https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/cleanup.ps1 | Out-File -FilePath 'C:\Windows\Setup\scripts\cleanup.ps1' -Encoding ascii -Force
+
+$OOBEcmdTasks = @'
+@echo off
+
+REM Wait for Network 10 seconds
+REM ping 127.0.0.1 -n 10 -w 1  >NUL 2>&1
+
+REM Execute OOBE Tasks
+start /wait powershell.exe -NoL -ExecutionPolicy Bypass -F C:\Windows\Setup\Scripts\oobe.ps1
+
+
+REM Execute Cleanup Script
+start /wait powershell.exe -NoL -ExecutionPolicy Bypass -F C:\Windows\Setup\Scripts\cleanup.ps1
+
+REM Below a PS session for debug and testing in system context, # when not needed 
+REM start /wait powershell.exe -NoL -ExecutionPolicy Bypass
+
+exit 
 '@
-$OOBECMD | Out-File -FilePath 'C:\Windows\System32\OOBE.cmd' -Encoding ascii -Force
+$OOBEcmdTasks | Out-File -FilePath 'C:\Windows\Setup\scripts\oobe.cmd' -Encoding ascii -Force
 
-#================================================
-#  [PostOS] SetupComplete CMD Command Line
-#================================================
-Write-Host -ForegroundColor Green "Create C:\Windows\Setup\Scripts\SetupComplete.cmd"
-$SetupCompleteCMD = @'
-powershell.exe -Command Set-ExecutionPolicy RemoteSigned -Force
-powershell.exe -Command "& {IEX (IRM https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/oobetasks.ps1)}"
-'@
-$SetupCompleteCMD | Out-File -FilePath 'C:\Windows\Setup\Scripts\SetupComplete.cmd' -Encoding ascii -Force
 
-#=======================================================================
-#   Restart-Computer
-#=======================================================================
-Write-Host  -ForegroundColor Green "Restarting in 20 seconds!"
-Start-Sleep -Seconds 20
-wpeutil reboot
+
+
+
+
+#=======================================================================	
+Write-SectionHeader "Moving OSDCloud Logs to IntuneManagementExtension\Logs\OSD"	
+#=======================================================================	
+if (-NOT (Test-Path 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD')) {	
+    New-Item -Path 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD' -ItemType Directory -Force -ErrorAction Stop | Out-Null	
+}	
+Get-ChildItem -Path X:\OSDCloud\Logs\ | Copy-Item -Destination 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD' -Force
+
+if ($Global:WPNinjaCH.Development -eq $false){
+    Write-DarkGrayHost "Restarting in 20 seconds!"
+    Start-Sleep -Seconds 20
+
+    wpeutil reboot
+
+    Stop-Transcript | Out-Null
+}
+else {
+    Write-DarkGrayHost "Development Mode - No reboot!"
+    Stop-Transcript | Out-Null
+}
