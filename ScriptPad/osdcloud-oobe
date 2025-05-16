@@ -202,6 +202,7 @@ Write-DarkGrayHost "Downloading Scripts for OOBE and specialize phase"
 
 Invoke-RestMethod https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/oobetasks.ps1 | Out-File -FilePath 'C:\Windows\Setup\scripts\oobe.ps1' -Encoding ascii -Force
 Invoke-RestMethod https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/cleanup.ps1 | Out-File -FilePath 'C:\Windows\Setup\scripts\cleanup.ps1' -Encoding ascii -Force
+Invoke-RestMethod https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/unattend.ps1 | Out-File -FilePath 'C:\Windows\Setup\scripts\unattend.ps1' -Encoding ascii -Force
 
 $OOBEcmdTasks = @'
 @echo off
@@ -215,6 +216,11 @@ start /wait powershell.exe -NoL -ExecutionPolicy Bypass -F C:\Windows\Setup\Scri
 
 REM Execute Cleanup Script
 start /wait powershell.exe -NoL -ExecutionPolicy Bypass -F C:\Windows\Setup\Scripts\cleanup.ps1
+
+REM Execute Unattend Script
+start /wait powershell.exe -NoL -ExecutionPolicy Bypass -F C:\Windows\Setup\scripts\unattend.ps1
+
+
 
 REM Below a PS session for debug and testing in system context, # when not needed 
 REM start /wait powershell.exe -NoL -ExecutionPolicy Bypass
