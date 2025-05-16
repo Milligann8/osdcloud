@@ -195,55 +195,56 @@ Write-SectionHeader "[PostOS] Define Specialize Phase"
 #=================================================
 $UnattendXml = @'
 <?xml version="1.0" encoding="utf-8"?>
-<unattend xmlns="urn:schemas-microsoft-com:unattend">
-    <settings pass="windowsPE">
-        <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="en-US" versionScope="nonSxS">
-            <InputLocale>en-US</InputLocale>
-            <SystemLocale>en-US</SystemLocale>
-            <UILanguage>en-US</UILanguage>
-            <UILanguageFallback>en-US</UILanguageFallback>
-            <UserLocale>en-US</UserLocale>
-        </component>
-    </settings>
-    <settings pass="specialize">
-        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-            <ComputerName>Temp-OSDCLOUD</ComputerName>
-        </component>
-    </settings>
-    <settings pass="oobeSystem">
-        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-            <AutoLogon>
-                <Password>
-                    <Value>Test</Value>
-                    <PlainText>false</PlainText>
-                </Password>
-                <Enabled>true</Enabled>
-                <LogonCount>1</LogonCount>
-                <Username>ariadmin</Username>
-            </AutoLogon>
-            <UserAccounts>
-                <LocalAccounts>
-                    <LocalAccount wcm:action="add">
-                        <Name>ariadmin</Name>
-                        <Group>Administrators</Group>
-                        <Password>
-                            <Value>Test</Value>
-                            <PlainText>false</PlainText>
-                        </Password>
-                    </LocalAccount>
-                </LocalAccounts>
-            </UserAccounts>
-            <OOBE>
-                <HideEULAPage>true</HideEULAPage>
-                <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
-                <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
-                <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-                <SkipUserOOBE>true</SkipUserOOBE>
-                <SkipMachineOOBE>true</SkipUserOOBE>
-            </OOBE>
-            <TimeZone>Mountain Standard Time</TimeZone>
-        </component>
-    </settings>
+<unattend xmlns="urn:schemas-microsoft-com:unattend"
+xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+<settings pass="windowsPE">
+<component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="en-US" versionScope="nonSxS">
+<InputLocale>en-US</InputLocale>
+<SystemLocale>en-US</SystemLocale>
+<UILanguage>en-US</UILanguage>
+<UILanguageFallback>en-US</UILanguageFallback>
+<UserLocale>en-US</UserLocale>
+</component>
+</settings>
+<settings pass="specialize">
+<component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+<ComputerName>Temp-OSDCLOUD</ComputerName>
+</component>
+</settings>
+<settings pass="oobeSystem">
+<component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+<AutoLogon>
+<Password>
+<Value>Test</Value>
+<PlainText>false</PlainText>
+</Password>
+<Enabled>true</Enabled>
+<LogonCount>1</LogonCount>
+<Username>ariadmin</Username>
+</AutoLogon>
+<UserAccounts>
+<LocalAccounts>
+<LocalAccount wcm:action="add">
+<Name>ariadmin</Name>
+<Group>Administrators</Group>
+<Password>
+<Value>Test</Value>
+<PlainText>false</PlainText>
+</Password>
+</LocalAccount>
+</LocalAccounts>
+</UserAccounts>
+<OOBE>
+<HideEULAPage>true</HideEULAPage>
+<HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+<HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+<HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+<SkipUserOOBE>true</SkipUserOOBE>
+<SkipMachineOOBE>true</SkipMachineOOBE>
+</OOBE>
+<TimeZone>Mountain Standard Time</TimeZone>
+</component>
+</settings>
 </unattend>
 '@ 
 if (-NOT (Test-Path 'C:\Windows\Panther')) {
