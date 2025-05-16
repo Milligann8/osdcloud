@@ -123,7 +123,7 @@ try {
   Exit 1  # Terminate the script on error
 }
 
-Stop-transcript 
+stop-transcript 
 # Optionally, remove the temporary file
 # try {
 #     Remove-Item -Path $FullPath
