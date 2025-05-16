@@ -271,7 +271,7 @@ function Rename-ComputerWithSerialNumber {
 
 # C:\Windows\Setup\Scripts\oobe.ps1
 
-function step-Generate-UnattendXML {
+function step-GenerateUnattendXML {
     <#
     .SYNOPSIS
         Generates the unattend.xml content as a string.
@@ -332,7 +332,7 @@ function step-Generate-UnattendXML {
     return $xmlContent
 }
 
-function step-Apply-Unattend {
+function step-ApplyUnattend {
     <#
     .SYNOPSIS
         Generates the unattend.xml and moves it to C:\Windows\Panther\.
@@ -381,8 +381,8 @@ Step-oobePackageManagemen
 Step-oobeRemoveAppxPackage
 Step-oobeUpdateDrivers
 Step-oobeUpdateWindows
-step-Generate-UnattendXML
-step-Apply-Unattend
+step-GenerateUnattendXML
+step-ApplyUnattend
 Rename-ComputerWithSerialNumber
 Step-oobeRestartComputer
 Step-oobeStopComputer
