@@ -224,6 +224,52 @@ function Step-oobeStopComputer {
         Stop-Computer
     }
 }
+# C:\Windows\Setup\Scripts\oobe.ps1
+
+function Rename-ComputerWithSerialNumber {
+    <#
+    .SYNOPSIS
+        Renames the computer using the prefix "arivo-" followed by the system's serial number.
+        Optionally restarts the computer after renaming.
+    .DESCRIPTION
+        This function retrieves the serial number of the computer using WMI,
+        constructs a new computer name with the "arivo-" prefix, renames the computer,
+        and optionally restarts the system.
+    #>
+    param (
+        [Switch]$Restart = $false
+    )
+
+    # Set PowerShell Execution Policy if needed
+    Set-ExecutionPolicy Bypass -Scope LocalMachine -Force -ErrorAction SilentlyContinue
+
+    try {
+        # Get the Serial Number
+        $SerialNumber = Get-WmiObject Win32_BIOS | Select-Object -ExpandProperty SerialNumber
+        if (-not $SerialNumber) {
+            Write-Warning "Could not retrieve serial number. Skipping computer renaming."
+            return
+        }
+
+        # Define the new Computer Name
+        $NewComputerName = "arivo-$SerialNumber"
+
+        # Rename the Computer
+        Write-Host "Renaming computer to '$NewComputerName'..."
+        Rename-Computer -NewName $NewComputerName -Force
+
+        if ($Restart) {
+            Write-Host "Restarting computer to apply the new name..."
+            Restart-Computer -Force
+        } else {
+            Write-Host "Computer renamed successfully. A restart is required for the new name to take effect."
+        }
+    } catch {
+        Write-Error "An error occurred during computer renaming: $($_.Exception.Message)"
+    }
+}
+
+# Call the function to rename the computer and restart
 #endregion
 
 # Execute functions
@@ -236,6 +282,7 @@ Step-oobeSetDateTime
 Step-oobeRemoveAppxPackage
 Step-oobeUpdateDrivers
 Step-oobeUpdateWindows
+Rename-ComputerWithSerialNumber
 Step-oobeRestartComputer
 Step-oobeStopComputer
 #=================================================
