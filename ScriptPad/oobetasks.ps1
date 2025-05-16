@@ -20,7 +20,7 @@ $Global:oobeCloud = @{
     oobeSetRegionLanguage = $true
     oobeSetDateTime = $true
     oobeRemoveAppxPackage = $true
-    oobeRemoveAppxPackageName = 'CommunicationsApps','OfficeHub','People','Skype','Solitaire','Xbox','ZuneMusic','ZuneVideo'
+    oobeRemoveAppxPackageName = 'Microsoft.MicrosoftSolitaireCollection'
     oobeUpdateDrivers = $true
     oobeUpdateWindows = $true
     oobeRestartComputer = $true
@@ -284,11 +284,10 @@ Step-oobeTrustPSGallery
 Step-oobeSetDisplay
 Step-oobeSetRegionLanguage
 Step-oobeSetDateTime
-Step-oobePackageManagemen
+Step-oobePackageManagement
 Step-oobeRemoveAppxPackage
 Step-oobeUpdateDrivers
 Step-oobeUpdateWindows
-Rename-ComputerWithSerialNumber
 Step-oobeRestartComputer
 Step-oobeStopComputer
 #=================================================
