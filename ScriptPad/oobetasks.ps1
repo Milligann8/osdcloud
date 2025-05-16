@@ -285,57 +285,48 @@ function Generate-UnattendXML {
     param ()
 
     $xmlContent = @"
-<?xml version="1.0" encoding="utf-8"?>
-<unattend xmlns="urn:schemas-microsoft-com:unattend"
-          xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
-    <settings pass="windowsPE">
-        <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="en-US" versionScope="nonSxS">
-            <InputLocale>en-US</InputLocale>
-            <SystemLocale>en-US</SystemLocale>
-            <UILanguage>en-US</UILanguage>
-            <UILanguageFallback>en-US</UILanguageFallback>
-            <UserLocale>en-US</UserLocale>
-        </component>
-    </settings>
-    <settings pass="specialize">
-        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-            <ComputerName>TEMP-OOBE</ComputerName>
-        </component>
-    </settings>
-    <settings pass="oobeSystem">
-        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-            <AutoLogon>
-                <Password>
-                    <Value>Test</Value>
-                    <PlainText>false</PlainText>
-                </Password>
-                <Enabled>true</Enabled>
-                <LogonCount>1</LogonCount>
-                <Username>ariadmin</Username>
-            </AutoLogon>
-            <UserAccounts>
-                <LocalAccounts>
-                    <LocalAccount wcm:action="add">
-                        <Name>ariadmin</Name>
-                        <Group>Administrators</Group>
-                        <Password>
-                            <Value>Test</Value>
-                            <PlainText>false</PlainText>
-                        </Password>
-                    </LocalAccount>
-                </LocalAccounts>
-            </UserAccounts>
-            <OOBE>
-                <HideEULAPage>true</HideEULAPage>
-                <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
-                <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
-                <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-                <SkipUserOOBE>true</SkipUserOOBE>
-                <SkipMachineOOBE>true</SkipMachineOOBE>
-            </OOBE>
-            <TimeZone>Mountain Standard Time</TimeZone>
-        </component>
-    </settings>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+<settings pass="oobeSystem">
+<component xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+<InputLocale>en-us</InputLocale>
+<SystemLocale>en-us</SystemLocale>
+<UILanguage>en-us</UILanguage>
+<UserLocale>en-us</UserLocale>
+</component>
+<component xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+<AutoLogon>
+<Password>
+<Value>dABlAHMAdABQAGEAcwBzAHcAbwByAGQA</Value>
+<PlainText>false</PlainText>
+</Password>
+<Enabled>true</Enabled>
+<LogonCount>2</LogonCount>
+<Username>ariadmin</Username>
+</AutoLogon>
+<OOBE>
+<HideEULAPage>true</HideEULAPage>
+<HideLocalAccountScreen>true</HideLocalAccountScreen>
+<HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+<HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+<HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+<ProtectYourPC>3</ProtectYourPC>
+</OOBE>
+<UserAccounts>
+<LocalAccounts>
+<LocalAccount wcm:action="add">
+<Password>
+<Value>dABlAHMAdABQAGEAcwBzAHcAbwByAGQA</Value>
+<PlainText>false</PlainText>
+</Password>
+<DisplayName>ariadmin</DisplayName>
+<Group>Administators</Group>
+<Name>ariadmin</Name>
+</LocalAccount>
+</LocalAccounts>
+</UserAccounts>
+</component>
+</settings>
+<cpi:offlineImage xmlns:cpi="urn:schemas-microsoft-com:cpi" cpi:source="wim:c:/install.wim#Windows 11 Pro"/>
 </unattend>
 "@
     return $xmlContent
@@ -368,11 +359,13 @@ function Apply-Unattend {
     }
     catch {
         Write-Error "An error occurred: $($_.Exception.Message)"
+
     }
 }
 
+
 # Call the function to generate and apply the unattend.xml
-Apply-Unattend
+
 
 # Call the function to rename the computer and restart
 #endregion
@@ -389,6 +382,7 @@ Step-oobeRemoveAppxPackage
 Step-oobeUpdateDrivers
 Step-oobeUpdateWindows
 Generate-UnattendXML
+Apply-Unattend
 Rename-ComputerWithSerialNumber
 Step-oobeRestartComputer
 Step-oobeStopComputer
