@@ -28,6 +28,8 @@
   * The script checks if the destination directory exists before
     attempting to copy the file.
 #>
+$Global:Transcript = "$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-unattend.log"
+Start-Transcript -Path (Join-Path "$env:ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD\" $Global:Transcript) -ErrorAction Ignore
 param (
   [Parameter(Mandatory = $false, HelpMessage = "The destination path for the unattend.xml file (optional).")]
   [string]$DestinationPath = "C:\Windows\Panther"  # Default OOBE path
@@ -121,6 +123,7 @@ try {
   Exit 1  # Terminate the script on error
 }
 
+Stop-transcript 
 # Optionally, remove the temporary file
 # try {
 #     Remove-Item -Path $FullPath
