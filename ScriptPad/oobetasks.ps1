@@ -29,18 +29,17 @@ $Global:oobeCloud = @{
 
 function Step-KeyboardLanguage {
 
-    Write-Host -ForegroundColor Green "Set keyboard language to de-CH"
+    Write-Host -ForegroundColor Green "Set keyboard language to en-US"
     Start-Sleep -Seconds 5
     
     $LanguageList = Get-WinUserLanguageList
     
-    $LanguageList.Add("de-CH")
+    $LanguageList.Add("en-US")
     Set-WinUserLanguageList $LanguageList -Force
     
     Start-Sleep -Seconds 5
     
     $LanguageList = Get-WinUserLanguageList
-    $LanguageList.Remove(($LanguageList | Where-Object LanguageTag -like 'en-US'))
     Set-WinUserLanguageList $LanguageList -Force | Out-Null
 }
 function Step-oobeSetDisplay {
@@ -269,6 +268,112 @@ function Rename-ComputerWithSerialNumber {
     }
 }
 
+
+# C:\Windows\Setup\Scripts\oobe.ps1
+
+function Generate-UnattendXML {
+    <#
+    .SYNOPSIS
+        Generates the unattend.xml content as a string.
+    .DESCRIPTION
+        This function creates the XML content for the unattend.xml file,
+        including settings for autologon, user accounts, OOBE skipping, and timezone.
+    .EXAMPLE
+        $xmlContent = Generate-UnattendXML
+    #>
+    [CmdletBinding()]
+    param ()
+
+    $xmlContent = @"
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend"
+          xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+    <settings pass="windowsPE">
+        <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="en-US" versionScope="nonSxS">
+            <InputLocale>en-US</InputLocale>
+            <SystemLocale>en-US</SystemLocale>
+            <UILanguage>en-US</UILanguage>
+            <UILanguageFallback>en-US</UILanguageFallback>
+            <UserLocale>en-US</UserLocale>
+        </component>
+    </settings>
+    <settings pass="specialize">
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+            <ComputerName>TEMP-OOBE</ComputerName>
+        </component>
+    </settings>
+    <settings pass="oobeSystem">
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+            <AutoLogon>
+                <Password>
+                    <Value>Test</Value>
+                    <PlainText>false</PlainText>
+                </Password>
+                <Enabled>true</Enabled>
+                <LogonCount>1</LogonCount>
+                <Username>ariadmin</Username>
+            </AutoLogon>
+            <UserAccounts>
+                <LocalAccounts>
+                    <LocalAccount wcm:action="add">
+                        <Name>ariadmin</Name>
+                        <Group>Administrators</Group>
+                        <Password>
+                            <Value>Test</Value>
+                            <PlainText>false</PlainText>
+                        </Password>
+                    </LocalAccount>
+                </LocalAccounts>
+            </UserAccounts>
+            <OOBE>
+                <HideEULAPage>true</HideEULAPage>
+                <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+                <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+                <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+                <SkipUserOOBE>true</SkipUserOOBE>
+                <SkipMachineOOBE>true</SkipMachineOOBE>
+            </OOBE>
+            <TimeZone>Mountain Standard Time</TimeZone>
+        </component>
+    </settings>
+</unattend>
+"@
+    return $xmlContent
+}
+
+function Apply-Unattend {
+    <#
+    .SYNOPSIS
+        Generates the unattend.xml and moves it to C:\Windows\Panther\.
+    .DESCRIPTION
+        This function calls Generate-UnattendXML to create the XML content,
+        outputs it to a temporary file, and then moves it to the Windows Panther directory.
+        It does NOT initiate a system reboot.
+    #>
+    [CmdletBinding()]
+    param ()
+
+    $xmlContent = Generate-UnattendXML
+    $TempUnattendPath = "C:\Windows\Temp\unattend.xml"
+    $DestinationPath = "C:\Windows\Panther\unattend.xml"
+
+    try {
+        Write-Host "Generating unattend.xml to '$TempUnattendPath'..."
+        $xmlContent | Out-File -FilePath $TempUnattendPath -Encoding utf8 -Width 2000 -Force -ErrorAction Stop
+        Write-Host "unattend.xml generated successfully."
+
+        Write-Host "Moving unattend.xml to '$DestinationPath'..."
+        Move-Item -Path $TempUnattendPath -Destination $DestinationPath -Force -ErrorAction Stop
+        Write-Host "unattend.xml moved to C:\Windows\Panther\ successfully."
+    }
+    catch {
+        Write-Error "An error occurred: $($_.Exception.Message)"
+    }
+}
+
+# Call the function to generate and apply the unattend.xml
+Apply-Unattend
+
 # Call the function to rename the computer and restart
 #endregion
 
@@ -279,9 +384,11 @@ Step-oobeTrustPSGallery
 Step-oobeSetDisplay
 Step-oobeSetRegionLanguage
 Step-oobeSetDateTime
+Step-oobePackageManagemen
 Step-oobeRemoveAppxPackage
 Step-oobeUpdateDrivers
 Step-oobeUpdateWindows
+Generate-UnattendXML
 Rename-ComputerWithSerialNumber
 Step-oobeRestartComputer
 Step-oobeStopComputer
