@@ -47,7 +47,7 @@ Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')
 Write-Host -ForegroundColor Cyan "[PreOS] Update Module"
 #================================================
 # Write-Host -ForegroundColor Green "Updating OSD PowerShell Module"
-# Install-Module OSD -Force -skippublishercheck
+# Install-Module OSD -Force
 
 Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
 Write-Host -ForegroundColor Green "Importing OSD PowerShell Module"
@@ -296,15 +296,9 @@ if (-NOT (Test-Path 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD
 }	
 Get-ChildItem -Path X:\OSDCloud\Logs\ | Copy-Item -Destination 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD' -Force
 
-if ($Global:WPNinjaCH.Development -eq $false){
     Write-DarkGrayHost "Restarting in 20 seconds!"
     Start-Sleep -Seconds 20
 
     wpeutil reboot
 
     Stop-Transcript | Out-Null
-}
-else {
-    Write-DarkGrayHost "Development Mode - No reboot!"
-    Stop-Transcript | Out-Null
-}
