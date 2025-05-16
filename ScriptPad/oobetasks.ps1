@@ -269,100 +269,7 @@ function Rename-ComputerWithSerialNumber {
 }
 
 
-# C:\Windows\Setup\Scripts\oobe.ps1
-
-function step-GenerateUnattendXML {
-    <#
-    .SYNOPSIS
-        Generates the unattend.xml content as a string.
-    .DESCRIPTION
-        This function creates the XML content for the unattend.xml file,
-        including settings for autologon, user accounts, OOBE skipping, and timezone.
-    .EXAMPLE
-        $xmlContent = Generate-UnattendXML
-    #>
-    [CmdletBinding()]
-    param ()
-
-    $xmlContent = @"
-<unattend xmlns="urn:schemas-microsoft-com:unattend">
-<settings pass="oobeSystem">
-<component xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-<InputLocale>en-us</InputLocale>
-<SystemLocale>en-us</SystemLocale>
-<UILanguage>en-us</UILanguage>
-<UserLocale>en-us</UserLocale>
-</component>
-<component xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
-<AutoLogon>
-<Password>
-<Value>dABlAHMAdABQAGEAcwBzAHcAbwByAGQA</Value>
-<PlainText>false</PlainText>
-</Password>
-<Enabled>true</Enabled>
-<LogonCount>2</LogonCount>
-<Username>ariadmin</Username>
-</AutoLogon>
-<OOBE>
-<HideEULAPage>true</HideEULAPage>
-<HideLocalAccountScreen>true</HideLocalAccountScreen>
-<HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
-<HideOnlineAccountScreens>true</HideOnlineAccountScreens>
-<HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-<ProtectYourPC>3</ProtectYourPC>
-</OOBE>
-<UserAccounts>
-<LocalAccounts>
-<LocalAccount wcm:action="add">
-<Password>
-<Value>dABlAHMAdABQAGEAcwBzAHcAbwByAGQA</Value>
-<PlainText>false</PlainText>
-</Password>
-<DisplayName>ariadmin</DisplayName>
-<Group>Administators</Group>
-<Name>ariadmin</Name>
-</LocalAccount>
-</LocalAccounts>
-</UserAccounts>
-</component>
-</settings>
-<cpi:offlineImage xmlns:cpi="urn:schemas-microsoft-com:cpi" cpi:source="wim:c:/install.wim#Windows 11 Pro"/>
-</unattend>
-"@
-    return $xmlContent
-}
-
-function step-ApplyUnattend {
-    <#
-    .SYNOPSIS
-        Generates the unattend.xml and moves it to C:\Windows\Panther\.
-    .DESCRIPTION
-        This function calls Generate-UnattendXML to create the XML content,
-        outputs it to a temporary file, and then moves it to the Windows Panther directory.
-        It does NOT initiate a system reboot.
-    #>
-    [CmdletBinding()]
-    param ()
-
-    $xmlContent = Generate-UnattendXML
-    $TempUnattendPath = "C:\Windows\Temp\unattend.xml"
-    $DestinationPath = "C:\Windows\Panther\unattend.xml"
-
-    try {
-        Write-Host "Generating unattend.xml to '$TempUnattendPath'..."
-        $xmlContent | Out-File -FilePath $TempUnattendPath -Encoding utf8 -Width 2000 -Force -ErrorAction Stop
-        Write-Host "unattend.xml generated successfully."
-
-        Write-Host "Moving unattend.xml to '$DestinationPath'..."
-        Move-Item -Path $TempUnattendPath -Destination $DestinationPath -Force -ErrorAction Stop
-        Write-Host "unattend.xml moved to C:\Windows\Panther\ successfully."
-    }
-    catch {
-        Write-Error "An error occurred: $($_.Exception.Message)"
-
-    }
-}
-
+# C:\
 
 # Call the function to generate and apply the unattend.xml
 
@@ -381,8 +288,6 @@ Step-oobePackageManagemen
 Step-oobeRemoveAppxPackage
 Step-oobeUpdateDrivers
 Step-oobeUpdateWindows
-step-GenerateUnattendXML
-step-ApplyUnattend
 Rename-ComputerWithSerialNumber
 Step-oobeRestartComputer
 Step-oobeStopComputer
