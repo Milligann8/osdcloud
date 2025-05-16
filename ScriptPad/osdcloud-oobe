@@ -47,7 +47,7 @@ Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')
 Write-Host -ForegroundColor Cyan "[PreOS] Update Module"
 #================================================
 # Write-Host -ForegroundColor Green "Updating OSD PowerShell Module"
-# Install-Module OSD -Force
+# Install-Module OSD -Force -skippublishercheck
 
 Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
 Write-Host -ForegroundColor Green "Importing OSD PowerShell Module"
