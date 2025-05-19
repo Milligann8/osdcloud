@@ -151,123 +151,6 @@ function Step-oobeRemoveAppxPackage {
         }
     }
 }
-function Step-Update-WindowsStoreApps {
-    [CmdletBinding()]
-    param()
-
-    # Check for Administrator Privileges
-    if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        Write-Warning "Administrator privileges are required to install winget and update applications."
-        Write-Warning "Please re-run this script as an Administrator."
-        return
-    } else {
-        Write-Host "Running with Administrator privileges." -ForegroundColor Green
-    }
-
-    # Check if winget is installed
-    Write-Host "Checking for winget..."
-    $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
-
-    if ($null -eq $wingetCmd) {
-        Write-Host "winget not found. Attempting to download and install winget..."
-
-        $wingetReleaseUrl = "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
-        $tempPath = Join-Path $env:TEMP "Microsoft.DesktopAppInstaller.msixbundle"
-
-        try {
-            Write-Host "Downloading winget installer from $wingetReleaseUrl..."
-            Invoke-WebRequest -Uri $wingetReleaseUrl -OutFile $tempPath -UseBasicParsing -Verbose:$false
-            Write-Host "Download complete."
-
-            Write-Host "Installing winget (App Installer)..."
-            # Suppress progress bar for Add-AppxPackage for cleaner output
-            $ProgressPreference = 'SilentlyContinue'
-            Add-AppxPackage -Path $tempPath | Out-Null
-            $ProgressPreference = 'Continue' # Reset preference
-
-            Write-Host "Winget (App Installer) installation attempted."
-
-            # Attempt to find winget again after installation
-            $wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
-            if ($null -eq $wingetCmd) {
-                Write-Warning "Winget has been installed, but the 'winget' command might not be available in this current PowerShell session yet."
-                Write-Warning "Please try opening a NEW PowerShell terminal and running 'Update-WindowsStoreApps' again."
-                Write-Warning "You can also verify the installation by typing 'winget --version' in a new terminal."
-                return # Exit function as winget is not yet usable in this session
-            } else {
-                Write-Host "Winget is now installed and available at: $($wingetCmd.Source)" -ForegroundColor Green
-            }
-        } catch {
-            Write-Error "Failed to download or install winget: $($_.Exception.Message)"
-            if (Test-Path $tempPath) {
-                Remove-Item -Path $tempPath -Force -ErrorAction SilentlyContinue
-            }
-            return
-        } finally {
-            if (Test-Path $tempPath) {
-                Remove-Item -Path $tempPath -Force -ErrorAction SilentlyContinue
-                Write-Host "Cleaned up downloaded installer file."
-            }
-        }
-    } else {
-        Write-Host "Winget is already installed at: $($wingetCmd.Source)" -ForegroundColor Green
-    }
-
-    # Proceed to update Store apps using winget
-    Write-Host "Attempting to update all Microsoft Store apps using winget."
-    Write-Host "This process may take some time. Please wait..."
-
-    try {
-        # Arguments for winget
-        $arguments = "upgrade --all --source msstore --accept-package-agreements --accept-source-agreements --disable-interactivity"
-        Write-Host "Executing: winget $arguments"
-
-        # Using Start-Process to better handle CLI tool execution and output
-        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-        $processInfo.FileName = $wingetCmd.Source # Use the full path to winget
-        $processInfo.Arguments = $arguments
-        $processInfo.RedirectStandardOutput = $true
-        $processInfo.RedirectStandardError = $true
-        $processInfo.UseShellExecute = $false   # Required for redirecting IO streams
-        $processInfo.CreateNoWindow = $true     # Run silently in the background
-
-        $process = New-Object System.Diagnostics.Process
-        $process.StartInfo = $processInfo
-        
-        $process.Start() | Out-Null # Start the process
-
-        # Capture output
-        $stdout = $process.StandardOutput.ReadToEnd()
-        $stderr = $process.StandardError.ReadToEnd()
-
-        $process.WaitForExit() # Wait for the process to complete
-
-        Write-Host "----- Winget Output -----" -ForegroundColor Cyan
-        if ($stdout) {
-            Write-Host $stdout
-        } else {
-            Write-Host "(No standard output)"
-        }
-        
-        if ($stderr) {
-            Write-Warning "----- Winget Errors -----"
-            Write-Warning $stderr
-        }
-
-        if ($process.ExitCode -eq 0) {
-            Write-Host "Winget update process completed successfully." -ForegroundColor Green
-        } else {
-            Write-Warning "Winget update process finished with Exit Code: $($process.ExitCode)."
-            Write-Warning "Review the output above for any errors or issues."
-        }
-
-    } catch {
-        Write-Error "An error occurred while trying to run winget upgrade: $($_.Exception.Message)"
-    }
-
-    Write-Host "Function Update-WindowsStoreApps finished."
-}
-
 
 
 function Step-oobeAddCapability {
@@ -363,7 +246,6 @@ Step-oobeSetDisplay
 Step-oobeSetRegionLanguage
 Step-oobeSetDateTime
 Step-oobeRemoveAppxPackage
-Step-Update-WindowsStoreApps
 Step-oobeAddCapability
 Step-oobeUpdateDrivers
 Step-oobeUpdateWindows
