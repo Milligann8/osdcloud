@@ -95,3 +95,4 @@ If (Test-Path -Path 'C:\ProgramData\OSDeploy') { Remove-Item 'C:\ProgramData\OSD
 Remove-Item C:\Windows\Setup\Scripts\*.* -Exclude *.TAG -Force | Out-Null
 
 Stop-Transcript
+Restart-Computer -Force
