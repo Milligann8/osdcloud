@@ -10,9 +10,9 @@ $null = Start-Transcript -Path (Join-Path "$env:SystemRoot\Temp" $Transcript) -E
 #   oobeCloud Settings
 #=================================================
 $Global:oobeCloud = @{
-    oobeSetDisplay = $true
-    oobeSetRegionLanguage = $true
-    oobeSetDateTime = $true
+    oobeSetDisplay = $false
+    oobeSetRegionLanguage = $false
+    oobeSetDateTime = $false
     oobeRemoveAppxPackage = $true
     oobeRemoveAppxPackageName = 'ActiproSoftwareLLC","AdobeSystemsIncorporated.AdobePhotoshopExpress","BubbleWitch3Saga","CandyCrush","DevHome","Disney","Dolby","Duolingo-LearnLanguagesforFree","EclipseManager","Facebook","Flipboard","gaming","Minecraft","Office","PandoraMediaInc","Royal Revolt","Speed Test","Spotify","Sway","Twitter","Wunderlist","AD2F1837.HPPrinterControl","AppUp.IntelGraphicsExperience","C27EB4BA.DropboxOEM*","Disney.37853FC22B2CE","DolbyLaboratories.DolbyAccess","DolbyLaboratories.DolbyAudio","E0469640.SmartAppearance","Microsoft.549981C3F5F10","Microsoft.AV1VideoExtension","Microsoft.BingNews","Microsoft.BingSearch","Microsoft.BingWeather","Microsoft.GetHelp","Microsoft.Getstarted","Microsoft.GamingApp","Microsoft.Messaging","Microsoft.Microsoft3DViewer","Microsoft.MicrosoftEdge.Stable","Microsoft.MicrosoftJournal","Microsoft.MicrosoftOfficeHub","Microsoft.MicrosoftSolitaireCollection","Microsoft.MixedReality.Portal","Microsoft.MPEG2VideoExtension","Microsoft.News","Microsoft.Office.Lens","Microsoft.Office.OneNote","Microsoft.Office.Sway","Microsoft.OneConnect","Microsoft.People","Microsoft.PowerAutomateDesktop","Microsoft.PowerAutomateDesktopCopilotPlugin","Microsoft.Print3D","Microsoft.RemoteDesktop","Microsoft.SkypeApp","Microsoft.SysinternalsSuite","Microsoft.Teams","Microsoft.Windows.DevHome","Microsoft.WindowsAlarms","Microsoft.windowscommunicationsapps","Microsoft.WindowsFeedbackHub","Microsoft.WindowsMaps","Microsoft.Xbox.TCUI","Microsoft.XboxApp","Microsoft.XboxGameOverlay","Microsoft.XboxGamingOverlay","Microsoft.XboxGamingOverlay_5.721.10202.0_neutral_~_8wekyb3d8bbwe","Microsoft.XboxIdentityProvider","Microsoft.XboxSpeechToTextOverlay","Microsoft.ZuneMusic","Microsoft.ZuneVideo","MicrosoftCorporationII.MicrosoftFamily","MicrosoftCorporationII.QuickAssist","MicrosoftWindows.CrossDevice","MirametrixInc.GlancebyMirametrix","RealtimeboardInc.RealtimeBoard","SpotifyAB.SpotifyMusic","5A894077.McAfeeSecurity","5A894077.McAfeeSecurity_2.1.27.0_x64__wafk5atnkzcwy'
     oobeAddCapability = $false
@@ -25,24 +25,23 @@ $Global:oobeCloud = @{
 
 function Step-KeyboardLanguage {
 
-    Write-Host -ForegroundColor Green "Set keyboard language to de-CH"
+    Write-Host -ForegroundColor Green "Set keyboard language to en-us"
     Start-Sleep -Seconds 5
     
     $LanguageList = Get-WinUserLanguageList
     
-    $LanguageList.Add("de-CH")
+    $LanguageList.Add("en-us")
     Set-WinUserLanguageList $LanguageList -Force | Out-Null
     
     Start-Sleep -Seconds 5
     
     $LanguageList = Get-WinUserLanguageList
-    $LanguageList.Remove(($LanguageList | Where-Object LanguageTag -like 'en-US'))
     Set-WinUserLanguageList $LanguageList -Force | Out-Null
 }
 function Step-oobeSetDisplay {
     [CmdletBinding()]
     param ()
-    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeSetDisplay -eq $true)) {
+    if ($Global:oobeCloud.oobeSetDisplay -eq $true) {
         Write-Host -ForegroundColor Yellow 'Verify the Display Resolution and Scale is set properly'
         Start-Process 'ms-settings:display' | Out-Null
         $ProcessId = (Get-Process -Name 'SystemSettings').Id
@@ -79,8 +78,7 @@ function Step-oobeSetDateTime {
 function Step-oobeExecutionPolicy {
     [CmdletBinding()]
     param ()
-    if ($env:UserName -eq 'defaultuser0') {
-        if ((Get-ExecutionPolicy) -ne 'RemoteSigned') {
+        if (Get-ExecutionPolicy) -ne 'RemoteSigned') {
             Write-Host -ForegroundColor Cyan 'Set-ExecutionPolicy RemoteSigned'
             Set-ExecutionPolicy RemoteSigned -Force
         }
@@ -89,7 +87,6 @@ function Step-oobeExecutionPolicy {
 function Step-oobePackageManagement {
     [CmdletBinding()]
     param ()
-    if ($env:UserName -eq 'defaultuser0') {
         if (Get-Module -Name PowerShellGet -ListAvailable | Where-Object {$_.Version -ge '2.2.5'}) {
             Write-Host -ForegroundColor Cyan 'PowerShellGet 2.2.5 or greater is installed'
         }
@@ -105,7 +102,6 @@ function Step-oobePackageManagement {
 function Step-oobeTrustPSGallery {
     [CmdletBinding()]
     param ()
-    if ($env:UserName -eq 'defaultuser0') {
         $PSRepository = Get-PSRepository -Name PSGallery
         if ($PSRepository)
         {
@@ -120,7 +116,7 @@ function Step-oobeTrustPSGallery {
 
 
 function Step-oobeRemoveAppxPackage {
-    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeRemoveAppxPackage -eq $true)) {
+    if  ($Global:oobeCloud.oobeRemoveAppxPackage -eq $true) {
         Write-Host -ForegroundColor Cyan 'Removing Appx Packages'
         foreach ($Item in $Global:oobeCloud.oobeRemoveAppxPackageName) {
             if (Get-Command Get-AppxProvisionedPackage) {
@@ -170,7 +166,7 @@ function Step-oobeAddCapability {
 function Step-oobeUpdateDrivers {
     [CmdletBinding()]
     param ()
-    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeUpdateDrivers -eq $true)) {
+    if ($Global:oobeCloud.oobeUpdateDrivers -eq $true) {
         Write-Host -ForegroundColor Cyan 'Updating Windows Drivers'
         if (!(Get-Module PSWindowsUpdate -ListAvailable -ErrorAction Ignore)) {
             try {
@@ -189,7 +185,7 @@ function Step-oobeUpdateDrivers {
 function Step-oobeUpdateWindows {
     [CmdletBinding()]
     param ()
-    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeUpdateWindows -eq $true)) {
+    if ($Global:oobeCloud.oobeUpdateWindows -eq $true) {
         Write-Host -ForegroundColor Cyan 'Updating Windows'
         if (!(Get-Module PSWindowsUpdate -ListAvailable)) {
             try {
@@ -214,7 +210,7 @@ function Step-oobeUpdateWindows {
 function Step-oobeRestartComputer {
     [CmdletBinding()]
     param ()
-    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeRestartComputer -eq $true)) {
+    if  ($Global:oobeCloud.oobeRestartComputer -eq $true) {
         Write-Host -ForegroundColor Cyan 'Build Complete!'
         Write-Warning 'Device will restart in 30 seconds.  Press Ctrl + C to cancel'
         Stop-Transcript
