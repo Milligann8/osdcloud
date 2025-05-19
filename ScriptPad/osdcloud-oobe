@@ -194,6 +194,73 @@ Get-ChildItem -Path 'C:\Windows\Setup\Scripts\SetupComplete*' -Recurse | Remove-
 Write-SectionHeader "[PostOS] Define Specialize Phase"
 #=================================================
 
+Write-SectionHeader "[PostOS] Define Specialize Phase"
+#=================================================
+$UnattendXml = @'
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+    <settings pass="oobeSystem">
+        <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <InputLocale>en-US</InputLocale>
+            <SystemLocale>en-US</SystemLocale>
+            <UILanguage>en-US</UILanguage>
+            <UserLocale>en-US</UserLocale>
+        </component>
+
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <OOBE>
+                <HideEULAPage>true</HideEULAPage>
+                <HideLocalAccountScreen>true</HideLocalAccountScreen> <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+                <HideOnlineAccountScreens>true</HideOnlineAccountScreens> <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+                <NetworkLocation>Work</NetworkLocation>
+                <ProtectYourPC>1</ProtectYourPC>
+            </OOBE>
+
+            <UserAccounts>
+                <LocalAccounts>
+                    <LocalAccount wcm:action="add">
+                        <Password>
+                            <Value>Test</Value>
+                            <PlainText>true</PlainText>
+                        </Password>
+                        <Description>Local Administrator Account for Ari</Description>
+                        <DisplayName>ariadmin</DisplayName>
+                        <Group>Administrators</Group> <Name>ariadmin</Name>
+                    </LocalAccount>
+                </LocalAccounts>
+            </UserAccounts>
+
+            <AutoLogon>
+                <Password>
+                    <Value>Test</Value>
+                    <PlainText>true</PlainText>
+                </Password>
+                <Enabled>true</Enabled>
+                <LogonCount>1</LogonCount> <Username>ariadmin</Username>
+            </AutoLogon>
+
+        </component>
+    </settings>
+
+    </unattend>
+
+'@ 
+# Get-OSDGather -Property IsWinPE
+Block-WinOS
+
+if (-NOT (Test-Path 'C:\Windows\Panther')) {
+    New-Item -Path 'C:\Windows\Panther'-ItemType Directory -Force -ErrorAction Stop | Out-Null
+}
+
+$Panther = 'C:\Windows\Panther'
+$UnattendPath = "$Panther\Unattend.xml"
+$UnattendXml | Out-File -FilePath $UnattendPath -Encoding utf8 -Width 2000 -Force
+
+Write-DarkGrayHost "Use-WindowsUnattend -Path 'C:\' -UnattendPath $UnattendPath"
+Use-WindowsUnattend -Path 'C:\' -UnattendPath $UnattendPath | Out-Null
+#endregion
+
+
 #region OOBE Tasks
 #================================================
 Write-SectionHeader "[PostOS] OOBE CMD Command Line"
@@ -210,16 +277,15 @@ REM Wait a bit after OOBE phase
 ping 127.0.0.1 -n 30 -w 1 >NUL 2>&1
 
 REM Execute System Tasks
-start /wait powershell.exe -NoL -ExecutionPolicy Bypass -File C:\Windows\Setup\Scripts\oobe.ps1
+start /wait powershell.exe -NoL -ExecutionPolicy Bypass -F C:\Windows\Setup\Scripts\oobe.ps1
 
 REM Execute Cleanup Script (if needed as SYSTEM)
-start /wait powershell.exe -NoL -ExecutionPolicy Bypass -File C:\Windows\Setup\scripts\cleanup.ps1
+start /wait powershell.exe -NoL -ExecutionPolicy Bypass -F C:\Windows\Setup\scripts\cleanup.ps1
 
 REM Below a PS session for debug and testing in system context, # when not needed
 REM start /wait powershell.exe -NoL -ExecutionPolicy Bypass
 
-exit off
-
+exit
  
 '@
 $OOBEcmdTasks | Out-File -FilePath 'C:\Windows\Setup\scripts\oobe.cmd' -Encoding ascii -Force
