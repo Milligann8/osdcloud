@@ -119,8 +119,8 @@ Write-SectionHeader "[OS] Params and Start-OSDCloud"
     $OSEdition = 'Pro'
     $OSActivation = 'Retail'
     $OSLanguage = 'en-us'
-    ZTI = $true
-    Firmware = $true
+    $ZTI = Zti
+    $Firmware = $true
 
 #Set OSDCloud Vars
 $Global:MyOSDCloud = [ordered]@{
