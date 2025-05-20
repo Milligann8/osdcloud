@@ -165,7 +165,7 @@ elseif ($ChassisType -eq "3" -or`
 }
 
 If (!($HW)) {
-    $AssignedComputerName = "RENAME_ME$Serial"
+    $AssignedComputerName = "Arivo-$Serial"
 }
 else {
     $AssignedComputerName = "$HW-2$lastFourChars"        
