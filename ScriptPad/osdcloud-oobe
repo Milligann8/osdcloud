@@ -114,15 +114,13 @@ function Write-SectionSuccess {
 #=======================================================================
 Write-SectionHeader "[OS] Params and Start-OSDCloud"
 #=======================================================================
-$Params = @{
-    OSVersion   = "Windows 11"
-    OSBuild     = "24H2"
-    OSEdition   = "Pro"
-    OSLanguage  = "en-us"
-    OSLicense   = "Retail"
+
+    $OSName = 'Windows 11 24H2 x64'
+    $OSEdition = 'Pro'
+    $OSActivation = 'Retail'
+    $OSLanguage = 'en-us'
     ZTI         = $true
     Firmware    = $true
-}
 
 #Set OSDCloud Vars
 $Global:MyOSDCloud = [ordered]@{
@@ -137,9 +135,8 @@ $Global:MyOSDCloud = [ordered]@{
     ShutdownSetupComplete = [bool]$false
     SyncMSUpCatDriverUSB = [bool]$true
     CheckSHA1 = [bool]$true
+
 }
-
-
 
 
 Write-Host ($Params | Out-String)
