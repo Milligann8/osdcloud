@@ -137,7 +137,7 @@ $Global:MyOSDCloud = [ordered]@{
 }
 
 
-Start-OSDCloud Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage -ZTI -Firmware
+Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage -ZTI -Firmware
 #endregion
 
 #================================================
