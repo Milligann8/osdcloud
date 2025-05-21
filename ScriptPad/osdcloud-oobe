@@ -1,67 +1,10 @@
-<#
-.SYNOPSIS
-    OSDCloud Logic for PreOS, OS and PostOS Tasks
-.DESCRIPTION
-    This script is used to perform PreOS, OS and PostOS tasks for OSDCloud.
-    It includes the following tasks:
-    - Update OSD PowerShell Module
-    - Import OSD PowerShell Module
-    - Install and configure firmware updates
-    - Define Autopilot attributes
-    - Setup Unattend.xml for specialize phase
-    - Execute OOBE and cleanup scripts
-    - Move OSDCloud logs to IntuneManagementExtension
-    - Restart the system if not in development mode
+#to Run, boot OSDCloudUSB, at the PS Prompt: iex (irm win11.garytown.com)
 
-.NOTES
-    Version:		0.1
-    Creation Date:  23.04.2025
-    Author:			Akos Bakos
-    Company:        SmartCon GmbH
-    Contact:		akos.bakos@smartcon.ch
-
-    Copyright (c) 2025 SmartCon GmbH
-
-HISTORY:
-Date			By			Comments
-----------		---			----------------------------------------------------------
-23.04.2025		Akos Bakos	Script created
-
-#>
-
-if (-NOT (Test-Path 'X:\OSDCloud\Logs')) {
-    New-Item -Path 'X:\OSDCloud\Logs' -ItemType Directory -Force -ErrorAction Stop | Out-Null
-}
-
-#Transport Layer Security (TLS) 1.2
-Write-Host -ForegroundColor Green "Transport Layer Security (TLS) 1.2"
-[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-#[System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultCredentials
-
-$Transcript = "$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-Start-OSDCloudLogic.log"
-Start-Transcript -Path (Join-Path "X:\OSDCloud\Logs" $Transcript) -ErrorAction Ignore | Out-Null
-
-#================================================
-Write-Host -ForegroundColor DarkGray "========================================================================="
-Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
-Write-Host -ForegroundColor Cyan "[PreOS] Update Module"
-#================================================
-# Write-Host -ForegroundColor Green "Updating OSD PowerShell Module"
-# Install-Module OSD -Force
-
-Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
-Write-Host -ForegroundColor Green "Importing OSD PowerShell Module"
-Import-Module OSD -Force
-
-Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
-Write-Host -ForegroundColor Green "PSCloudScript at functions.osdcloud.com"
-Invoke-Expression (Invoke-RestMethod -Uri functions.osdcloud.com)
-
-#region Helper Functions
+#region Initialization
 function Write-DarkGrayDate {
     [CmdletBinding()]
     param (
-        [Parameter(Position=0)]
+        [Parameter(Position = 0)]
         [System.String]
         $Message
     )
@@ -75,7 +18,7 @@ function Write-DarkGrayDate {
 function Write-DarkGrayHost {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [System.String]
         $Message
     )
@@ -84,12 +27,12 @@ function Write-DarkGrayHost {
 function Write-DarkGrayLine {
     [CmdletBinding()]
     param ()
-    Write-Host -ForegroundColor DarkGray "========================================================================="
+    Write-Host -ForegroundColor DarkGray '========================================================================='
 }
 function Write-SectionHeader {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [System.String]
         $Message
     )
@@ -100,25 +43,42 @@ function Write-SectionHeader {
 function Write-SectionSuccess {
     [CmdletBinding()]
     param (
-        [Parameter(Position=0)]
+        [Parameter(Position = 0)]
         [System.String]
         $Message = 'Success!'
     )
     Write-DarkGrayDate
     Write-Host -ForegroundColor Green $Message
 }
+#endregion
+
+$ScriptName = 'win11.garytown.com'
+$ScriptVersion = '25.01.22.1'
+Write-Host -ForegroundColor Green "$ScriptName $ScriptVersion"
+#iex (irm functions.garytown.com) #Add custom functions used in Script Hosting in GitHub
+#iex (irm functions.osdcloud.com) #Add custom fucntions from OSDCloud
+
+<# Offline Driver Details
+If you extract Driver Packs to your Flash Drive, you can DISM them in while in WinPE and it will make the process much faster, plus ensure driver support for first Boot
+Extract to: OSDCLoudUSB:\OSDCloud\DriverPacks\DISM\$ComputerManufacturer\$ComputerProduct
+Use OSD Module to determine Vars
+$ComputerProduct = (Get-MyComputerProduct)
+$ComputerManufacturer = (Get-MyComputerManufacturer -Brief)
+#>
 
 
 
-#region OS Tasks
-#=======================================================================
-Write-SectionHeader "[OS] Params and Start-OSDCloud"
-#=======================================================================
+#Variables to define the Windows OS / Edition etc to be applied during OSDCloud
+$Product = (Get-MyComputerProduct)
+$Model = (Get-MyComputerModel)
+$Manufacturer = (Get-CimInstance -ClassName Win32_ComputerSystem).Manufacturer
+$OSVersion = 'Windows 11' #Used to Determine Driver Pack
+$OSReleaseID = '24H2' #Used to Determine Driver Pack
+$OSName = 'Windows 11 24H2 x64'
+$OSEdition = 'Pro'
+$OSActivation = 'Retail'
+$OSLanguage = 'en-us'
 
-    $OSName = 'Windows 11 24H2 x64'
-    $OSEdition = 'Pro'
-    $OSActivation = 'Retail'
-    $OSLanguage = 'en-us'
 
 #Set OSDCloud Vars
 $Global:MyOSDCloud = [ordered]@{
@@ -133,188 +93,94 @@ $Global:MyOSDCloud = [ordered]@{
     ShutdownSetupComplete = [bool]$false
     SyncMSUpCatDriverUSB = [bool]$true
     CheckSHA1 = [bool]$true
-
 }
 
+#Testing MS Update Catalog Driver Sync
+#$Global:MyOSDCloud.DriverPackName = 'Microsoft Update Catalog'
 
-Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage -ZTI -Firmware
-#endregion
+#Used to Determine Driver Pack
+$DriverPack = Get-OSDCloudDriverPack -Product $Product -OSVersion $OSVersion -OSReleaseID $OSReleaseID
 
-#================================================
-Write-DarkGrayHost "Define Computername"
-$Serial = Get-WmiObject Win32_bios | Select-Object -ExpandProperty SerialNumber
-$lastFourChars = $serial.Substring($serial.Length - 4)
-#$AssignedComputerName = "NB-2$lastFourChars"
-
-$ChassisType = (Get-WmiObject -Query "SELECT * FROM Win32_SystemEnclosure").ChassisTypes
-$HyperV = Get-WmiObject -Query "SELECT * FROM Win32_ComputerSystem WHERE Manufacturer LIKE '%Microsoft Corporation%' AND Model LIKE '%Virtual Machine%'"
-$VMware = Get-WmiObject -Query "SELECT * FROM Win32_ComputerSystem WHERE Manufacturer LIKE '%VMware%' AND Model LIKE '%VMware%'"
-
-If ($HyperV -or $VMware) {
-    $HW         = "VM"
+if ($DriverPack){
+    $Global:MyOSDCloud.DriverPackName = $DriverPack.Name
 }
+#$Global:MyOSDCloud.DriverPackName = "None"
 
-If ($ChassisType -eq "8" -or`
-    $ChassisType -eq "9" -or`
-    $ChassisType -eq "10" -or`
-    $ChassisType -eq "11" -or`
-    $ChassisType -eq "12" -or`
-    $ChassisType -eq "14" -or`
-    $ChassisType -eq "18" -or`
-    $ChassisType -eq "21" -or`
-    $ChassisType -eq "31") {
-    $HW = "NB"
+<#If Drivers are expanded on the USB Drive, disable installing a Driver Pack
+if (Test-DISMFromOSDCloudUSB -eq $true){
+    Write-Host "Found Driver Pack Extracted on Cloud USB Flash Drive, disabling Driver Download via OSDCloud" -ForegroundColor Green
+    if ($Global:MyOSDCloud.SyncMSUpCatDriverUSB -eq $true){
+        write-host "Setting DriverPackName to 'Microsoft Update Catalog'"
+        $Global:MyOSDCloud.DriverPackName = 'Microsoft Update Catalog'
+    }
+    else {
+        write-host "Setting DriverPackName to 'None'"
+        $Global:MyOSDCloud.DriverPackName = "None"
+    }
 }
-
-elseif ($ChassisType -eq "3" -or`
-    $ChassisType -eq "4" -or`
-    $ChassisType -eq "5" -or`
-    $ChassisType -eq "6" -or`
-    $ChassisType -eq "7" -or`
-    $ChassisType -eq "15" -or`
-    $ChassisType -eq "16" -or`
-    $ChassisType -eq "35") {
-    $HW = "PC"
-}
-
-If (!($HW)) {
-    $AssignedComputerName = "Arivo-$Serial"
-}
-else {
-    $AssignedComputerName = "$HW-2$lastFourChars"        
-}
-
-
-Write-Host -ForegroundColor Yellow "Computername: $AssignedComputerName"
-
-#================================================
-Write-SectionHeader "[PostOS] AutopilotOOBE Configuration"
-#================================================
-
-If (!(Test-Path "C:\ProgramData\OSDeploy")) {
-    New-Item "C:\ProgramData\OSDeploy" -ItemType Directory -Force | Out-Null
-}
-
-
-#region Specialize Tasks
-#================================================
-Write-SectionHeader "[PostOS] SetupComplete CMD Command Line"
-#================================================
-Write-DarkGrayHost "Cleanup SetupComplete Files from OSDCloud Module"
-Get-ChildItem -Path 'C:\Windows\Setup\Scripts\SetupComplete*' -Recurse | Remove-Item -Force
-
-#=================================================
-Write-SectionHeader "[PostOS] Define Specialize Phase"
-#=================================================
-
-Write-SectionHeader "[PostOS] Define Specialize Phase"
-#=================================================
-$UnattendXml = @'
-<?xml version="1.0" encoding="utf-8"?>
-<unattend xmlns="urn:schemas-microsoft-com:unattend">
-    <settings pass="oobeSystem">
-        <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-            <InputLocale>en-US</InputLocale>
-            <SystemLocale>en-US</SystemLocale>
-            <UILanguage>en-US</UILanguage>
-            <UserLocale>en-US</UserLocale>
-        </component>
-
-        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-            <OOBE>
-                <HideEULAPage>true</HideEULAPage>
-                <HideLocalAccountScreen>true</HideLocalAccountScreen> <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
-                <HideOnlineAccountScreens>true</HideOnlineAccountScreens> <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-                <NetworkLocation>Work</NetworkLocation>
-                <ProtectYourPC>1</ProtectYourPC>
-            </OOBE>
-
-            <UserAccounts>
-                <LocalAccounts>
-                    <LocalAccount wcm:action="add">
-                        <Password>
-                            <Value>Test</Value>
-                            <PlainText>true</PlainText>
-                        </Password>
-                        <Description>Local Administrator Account for Ari</Description>
-                        <DisplayName>ariadmin</DisplayName>
-                        <Group>Administrators</Group> <Name>ariadmin</Name>
-                    </LocalAccount>
-                </LocalAccounts>
-            </UserAccounts>
-
-            <AutoLogon>
-                <Password>
-                    <Value>Test</Value>
-                    <PlainText>true</PlainText>
-                </Password>
-                <Enabled>true</Enabled>
-                <LogonCount>1</LogonCount> <Username>ariadmin</Username>
-            </AutoLogon>
-
-        </component>
-    </settings>
-
-    </unattend>
-
-'@ 
-# Get-OSDGather -Property IsWinPE
-Block-WinOS
-
-if (-NOT (Test-Path 'C:\Windows\Panther')) {
-    New-Item -Path 'C:\Windows\Panther'-ItemType Directory -Force -ErrorAction Stop | Out-Null
-}
-
-$Panther = 'C:\Windows\Panther'
-$UnattendPath = "$Panther\Unattend.xml"
-$UnattendXml | Out-File -FilePath $UnattendPath -Encoding utf8 -Width 2000 -Force
-
-Write-DarkGrayHost "Use-WindowsUnattend -Path 'C:\' -UnattendPath $UnattendPath"
-Use-WindowsUnattend -Path 'C:\' -UnattendPath $UnattendPath | Out-Null
-#endregion
-
-
-#region OOBE Tasks
-#================================================
-Write-SectionHeader "[PostOS] OOBE CMD Command Line"
-#================================================
-Write-DarkGrayHost "Downloading Scripts for OOBE and specialize phase"
-
-Invoke-RestMethod https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/oobetasks.ps1 | Out-File -FilePath 'C:\Windows\Setup\scripts\oobe.ps1' -Encoding ascii -Force
-Invoke-RestMethod https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/cleanup.ps1 | Out-File -FilePath 'C:\Windows\Setup\scripts\cleanup.ps1' -Encoding ascii -Force
-
-$OOBEcmdTasks = @'
-@echo off
-
-REM Wait a bit after OOBE phase
-ping 127.0.0.1 -n 30 -w 1 >NUL 2>&1
-
-REM Execute System Tasks
-start /wait powershell.exe -NoL -ExecutionPolicy Bypass -F C:\Windows\Setup\Scripts\oobe.ps1
-
-REM Execute Cleanup Script (if needed as SYSTEM)
-start /wait powershell.exe -NoL -ExecutionPolicy Bypass -F C:\Windows\Setup\scripts\cleanup.ps1
-
-REM Below a PS session for debug and testing in system context, # when not needed
-REM start /wait powershell.exe -NoL -ExecutionPolicy Bypass
-
-exit
+#>
+#Enable HPIA | Update HP BIOS | Update HP TPM
  
-'@
-$OOBEcmdTasks | Out-File -FilePath 'C:\Windows\Setup\scripts\oobe.cmd' -Encoding ascii -Force
+if (Test-HPIASupport){
+    Write-SectionHeader -Message "Detected HP Device, Enabling HPIA, HP BIOS and HP TPM Updates"
+    #$Global:MyOSDCloud.DevMode = [bool]$True
+    $Global:MyOSDCloud.HPTPMUpdate = [bool]$True
+    if ($Product -ne '83B2' -and $Model -notmatch "zbook"){$Global:MyOSDCloud.HPIAALL = [bool]$true} #I've had issues with this device and HPIA
+    #{$Global:MyOSDCloud.HPIAALL = [bool]$true}
+    $Global:MyOSDCloud.HPBIOSUpdate = [bool]$true
+    #$Global:MyOSDCloud.HPCMSLDriverPackLatest = [bool]$true #In Test 
+    #Set HP BIOS Settings to what I want:
+    iex (irm https://raw.githubusercontent.com/gwblok/garytown/master/OSD/CloudOSD/Manage-HPBiosSettings.ps1)
+    Manage-HPBiosSettings -SetSettings
+}
+
+if ($Manufacturer -match "Lenovo") {
+    #Set Lenovo BIOS Settings to what I want:
+    iex (irm https://raw.githubusercontent.com/gwblok/garytown/master/OSD/CloudOSD/Manage-LenovoBiosSettings.ps1)
+    try {
+        Manage-LenovoBIOSSettings -SetSettings
+    }
+    catch {
+        <#Do this if a terminating exception happens#>
+    }
+    
+}
 
 
-#=======================================================================	
-Write-SectionHeader "Moving OSDCloud Logs to IntuneManagementExtension\Logs\OSD"	
-#=======================================================================	
-if (-NOT (Test-Path 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD')) {	
-    New-Item -Path 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD' -ItemType Directory -Force -ErrorAction Stop | Out-Null	
-}	
-Get-ChildItem -Path X:\OSDCloud\Logs\ | Copy-Item -Destination 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\OSD' -Force
+#write variables to console
+Write-SectionHeader "OSDCloud Variables"
+Write-Output $Global:MyOSDCloud
 
-    Write-DarkGrayHost "Restarting in 20 seconds!"
-    Start-Sleep -Seconds 20
+#Update Files in Module that have been updated since last PowerShell Gallery Build (Testing Only)
+#$ModulePath = (Get-ChildItem -Path "$($Env:ProgramFiles)\WindowsPowerShell\Modules\osd" | Where-Object {$_.Attributes -match "Directory"} | Select-Object-Object -Last 1).fullname
+#import-module "$ModulePath\OSD.psd1" -Force
 
-    wpeutil reboot
+#Launch OSDCloud
+Write-SectionHeader -Message "Starting OSDCloud"
+write-host "Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage"
 
-    Stop-Transcript | Out-Null
+Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage
+
+Write-SectionHeader -Message "OSDCloud Process Complete, Running Custom Actions From Script Before Reboot"
+
+
+
+<#Used in Testing "Beta Gary Modules which I've updated on the USB Stick"
+$OfflineModulePath = (Get-ChildItem -Path "C:\Program Files\WindowsPowerShell\Modules\osd" | Where-Object {$_.Attributes -match "Directory"} | Select-Object -Last 1).fullname
+write-host -ForegroundColor Yellow "Updating $OfflineModulePath using $ModulePath - For Dev Purposes Only"
+copy-item "$ModulePath\*" "$OfflineModulePath"  -Force -Recurse
+#>
+#Copy CMTrace Local:
+if (Test-path -path "x:\windows\system32\cmtrace.exe"){
+    copy-item "x:\windows\system32\cmtrace.exe" -Destination "C:\Windows\System\cmtrace.exe" -verbose
+}
+
+if ($Manufacturer -match "Lenovo") {
+    $PowerShellSavePath = 'C:\Program Files\WindowsPowerShell'
+    Write-Host "Copy-PSModuleToFolder -Name LSUClient to $PowerShellSavePath\Modules"
+    Copy-PSModuleToFolder -Name LSUClient -Destination "$PowerShellSavePath\Modules"
+    Write-Host "Copy-PSModuleToFolder -Name Lenovo.Client.Scripting to $PowerShellSavePath\Modules"
+    Copy-PSModuleToFolder -Name Lenovo.Client.Scripting -Destination "$PowerShellSavePath\Modules"
+}
+#Restart
+#restart-computer
