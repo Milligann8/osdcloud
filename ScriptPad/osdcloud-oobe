@@ -70,7 +70,7 @@ function Invoke-OSDCloud {
     $Global:OSDCloud = [ordered]@{
         LaunchMethod = $null
         AutomateAutopilot = $null
-        AutomateProvisioning = $null
+        AutomateProvisioning = $true
         AutomateShutdownScript = $null
         AutomateStartupScript = $null
         AutopilotJsonChildItem = $null
@@ -114,8 +114,8 @@ function Invoke-OSDCloud {
         ExpandWindowsImage = $null
         Function = $MyInvocation.MyCommand.Name
         GetDiskFixed = $null
-        GetFeatureUpdate = $null
-        GetMyDriverPack = $null
+        GetFeatureUpdate = $true
+        GetMyDriverPack = $true
         HPIADrivers = $null
         HPIAFirmware = $null
         HPIASoftware = $null
@@ -172,7 +172,7 @@ function Invoke-OSDCloud {
         OSLanguageNames = $null
         OSVersion = 'Windows 10'
         Product = Get-MyComputerProduct
-        Restart = [bool]$false
+        Restart = [bool]$true
         ScreenshotCapture = $false
         ScreenshotPath = "$env:TEMP\Screenshots"
         ScriptStartup = $null
@@ -183,11 +183,11 @@ function Invoke-OSDCloud {
         Shutdown = [bool]$false
         ShutdownSetupComplete = [bool]$false
         SkipAllDiskSteps = [bool]$false
-        SkipAutopilot = [bool]$false
-        SkipAutopilotOOBE = [bool]$false
+        SkipAutopilot = [bool]$true
+        SkipAutopilotOOBE = [bool]$true
         SkipClearDisk = [bool]$false
         SkipODT = [bool]$false
-        SkipOOBEDeploy = [bool]$false
+        SkipOOBEDeploy = [bool]$true
         SkipNewOSDisk = [bool]$false
         SkipRecoveryPartition = [bool]$false
         SplashScreen = [bool]$false
@@ -199,12 +199,12 @@ function Invoke-OSDCloud {
         Transcript = $null
         USBPartitions = $null
         Version = [Version](Get-Module -Name OSD -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1).Version
-        WindowsDefenderUpdate  = $null
-        WindowsUpdate  = $null
+        WindowsDefenderUpdate  = $true
+        WindowsUpdate  = $true
         WindowsUpdateDrivers  = $null
         WindowsImage = $null
         WindowsImageCount = $null
-        ZTI = [bool]$false
+        ZTI = [bool]$true
     }
     #endregion
 
