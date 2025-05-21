@@ -670,3 +670,4 @@ function Start-OSDCloud {
     Invoke-OSDCloud
     #=================================================
 }
+Start-OSDCloud
