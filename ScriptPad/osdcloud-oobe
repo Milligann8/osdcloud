@@ -128,7 +128,7 @@ function Start-OSDCloud {
     #=================================================
     #	$Global:StartOSDCloud
     #=================================================
-    $Global:StartOSDCloud = $null
+    $Global:StartOSDCloud = $true
     $Global:StartOSDCloud = [ordered]@{
         LaunchMethod = 'OSDCloudCLI'
         AutopilotJsonChildItem = $null
@@ -141,7 +141,7 @@ function Start-OSDCloud {
         AutopilotOOBEJsonObject = $null
         Function = $MyInvocation.MyCommand.Name
         GetDiskFixed = $null
-        GetFeatureUpdate = $null
+        GetFeatureUpdate = $true
         ImageFileFullName = $null
         ImageFileItem = $null
         ImageFileName = $null
@@ -150,7 +150,7 @@ function Start-OSDCloud {
         ImageFileUrl = $ImageFileUrl
         IsOnBattery = Get-OSDGather -Property IsOnBattery
         Manufacturer = $Manufacturer
-        MSCatalogFirmware = $false
+        MSCatalogFirmware = $true
         MSCatalogDiskDrivers = $true
         MSCatalogNetDrivers = $true
         MSCatalogScsiDrivers = $true
@@ -178,13 +178,13 @@ function Start-OSDCloud {
         OSVersionNames = @('Windows 11','Windows 10')
         Product = $Product
         Restart = $Restart
-        ScreenshotCapture = $false
+        ScreenshotCapture = $true
         ScreenshotPath = "$env:TEMP\Screenshots"
         Shutdown = $Shutdown
         SkipAutopilot = $SkipAutopilot
         SkipAutopilotOOBE = $null
         SkipODT = $SkipODT
-        SkipOOBEDeploy = $null
+        SkipOOBEDeploy = $true
         TimeStart = Get-Date
         ZTI = $ZTI
     }
