@@ -1,161 +1,329 @@
-# Wait for network connection
-$ProgressPreference_bk = $ProgressPreference
-$ProgressPreference = 'SilentlyContinue'
-do {
-    if (!(Test-NetConnection '8.8.8.8' -InformationLevel Quiet)) {
-        Clear-Host
-        Write-Host "Waiting for network connection..." -ForegroundColor Yellow
-        Start-Sleep -Seconds 5
+# oobe.osdcloud.ch - needs to be here for blog post on akosbakos.ch
+
+[CmdletBinding()]
+param()
+#=================================================
+#Script Information
+$ScriptName = 'go.osdcloud.com/development'
+$ScriptVersion = '22.9.13.1'
+#=================================================
+#region Initialize
+
+#Start the Transcript
+$Transcript = "$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-OSDCloud.log"
+$null = Start-Transcript -Path (Join-Path "$env:SystemRoot\Temp" $Transcript) -ErrorAction Ignore
+
+#=================================================
+#   oobeCloud Settings
+#=================================================
+$Global:oobeCloud = @{
+    oobeSetDisplay = $true
+    oobeSetRegionLanguage = $false
+    oobeSetDateTime = $true
+    oobeRegisterAutopilot = $false
+    oobeRemoveAppxPackage = $true
+    oobeRemoveAppxPackageName = 'CommunicationsApps','OfficeHub','People','Skype','Solitaire','Xbox','ZuneMusic','ZuneVideo'
+    oobeAddCapability = $true
+    oobeUpdateDrivers = $true
+    oobeUpdateWindows = $true
+    oobeRestartComputer = $true
+    oobeStopComputer = $false
+}
+
+function Step-KeyboardLanguage {
+
+    Write-Host -ForegroundColor Green "Set keyboard language to de-CH"
+    Start-Sleep -Seconds 5
+    
+    $LanguageList = Get-WinUserLanguageList
+    
+    $LanguageList.Add("de-CH")
+    Set-WinUserLanguageList $LanguageList -Force
+    
+    Start-Sleep -Seconds 5
+    
+    $LanguageList = Get-WinUserLanguageList
+    $LanguageList.Remove(($LanguageList | Where-Object LanguageTag -like 'en-US'))
+    Set-WinUserLanguageList $LanguageList -Force | Out-Null
+}
+function Step-oobeSetDisplay {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeSetDisplay -eq $true)) {
+        Write-Host -ForegroundColor Yellow 'Verify the Display Resolution and Scale is set properly'
+        Start-Process 'ms-settings:display' | Out-Null
+        $ProcessId = (Get-Process -Name 'SystemSettings').Id
+        if ($ProcessId) {
+            Wait-Process $ProcessId
+        }
     }
-} while (!(Test-NetConnection '8.8.8.8' -InformationLevel Quiet))
-$ProgressPreference = $ProgressPreference_bk
-
-
-
-# Configure location privacy settings
-reg add HKLM\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy /v LetAppsAccessLocation /t REG_DWORD /d 1 /f 
-
-# Set time zone
-Set-TimeZone -ID "Mountain Standard Time"
-
-# Sync system time
-w32tm /resync /force 
-
-# Ensure the Windows Update module is installed
-if (-not (Get-Module -Name PSWindowsUpdate -ListAvailable)) {
-    Install-PackageProvider -Name NuGet -Force -Scope CurrentUser
-    Install-Module -Name PSWindowsUpdate -Force -Scope CurrentUser
-    Import-Module PSWindowsUpdate
 }
-
-# Enable Microsoft Update (not just Windows Update)
-Add-WUServiceManager -ServiceID "7971f918-a847-4430-9279-4a52d1efe18d" -AddServiceFlag 7 -Confirm:$False
-
-# Set Windows Update categories
-$UpdateCategories = @(
-    "Security Updates", "Critical Updates", "Drivers", "Feature Packs",
-    "Definition Updates", "Service Packs", "Tools", "Update Rollups", "Updates"
-)
-
-# Fetch updates that match the specified categories
-$Updates = Get-WindowsUpdate -MicrosoftUpdate -Category $UpdateCategories -AcceptAll
-
-# Install updates if available, without automatic reboot
-if ($Updates) {
-    Write-Host "Installing updates..."
-    Install-WindowsUpdate -AcceptAll -IgnoreReboot
-} else {
-    Write-Host "No updates available."
-}
-
-$status = Get-WURebootStatus -Silent
-
-if ($status) {
-    $setup_runonce = @{
-        Path  = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
-        Name  = "execute_provisioning"
-        Value = "cmd /c powershell.exe -ExecutionPolicy Bypass -File {0}\provisioning.ps1" -f "$($env:ProgramData)\provisioning"
+function Step-oobeSetRegionLanguage {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeSetRegionLanguage -eq $true)) {
+        Write-Host -ForegroundColor Yellow 'Verify the Language, Region, and Keyboard are set properly'
+        Start-Process 'ms-settings:regionlanguage' | Out-Null
+        $ProcessId = (Get-Process -Name 'SystemSettings').Id
+        if ($ProcessId) {
+            Wait-Process $ProcessId
+        }
     }
-    New-ItemProperty @setup_runonce | Out-Null
-    Restart-Computer
 }
-else {
-    # best place to add more actions
+function Step-oobeSetDateTime {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeSetDateTime -eq $true)) {
+        Write-Host -ForegroundColor Yellow 'Verify the Date and Time is set properly including the Time Zone'
+        Write-Host -ForegroundColor Yellow 'If this is not configured properly, Certificates and Domain Join may fail'
+        Start-Process 'ms-settings:dateandtime' | Out-Null
+        $ProcessId = (Get-Process -Name 'SystemSettings').Id
+        if ($ProcessId) {
+            Wait-Process $ProcessId
+        }
+    }
+}
+function Step-oobeExecutionPolicy {
+    [CmdletBinding()]
+    param ()
+    if ($env:UserName -eq 'defaultuser0') {
+        if ((Get-ExecutionPolicy) -ne 'RemoteSigned') {
+            Write-Host -ForegroundColor Cyan 'Set-ExecutionPolicy RemoteSigned'
+            Set-ExecutionPolicy RemoteSigned -Force
+        }
+    }
+}
+function Step-oobePackageManagement {
+    [CmdletBinding()]
+    param ()
+    if ($env:UserName -eq 'defaultuser0') {
+        if (Get-Module -Name PowerShellGet -ListAvailable | Where-Object {$_.Version -ge '2.2.5'}) {
+            Write-Host -ForegroundColor Cyan 'PowerShellGet 2.2.5 or greater is installed'
+        }
+        else {
+            Write-Host -ForegroundColor Cyan 'Install-Package PackageManagement,PowerShellGet'
+            Install-Package -Name PowerShellGet -MinimumVersion 2.2.5 -Force -Confirm:$false -Source PSGallery | Out-Null
+    
+            Write-Host -ForegroundColor Cyan 'Import-Module PackageManagement,PowerShellGet'
+            Import-Module PackageManagement,PowerShellGet -Force
+        }
+    }
+}
+function Step-oobeTrustPSGallery {
+    [CmdletBinding()]
+    param ()
+    if ($env:UserName -eq 'defaultuser0') {
+        $PSRepository = Get-PSRepository -Name PSGallery
+        if ($PSRepository)
+        {
+            if ($PSRepository.InstallationPolicy -ne 'Trusted')
+            {
+                Write-Host -ForegroundColor Cyan 'Set-PSRepository PSGallery Trusted'
+                Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+            }
+        }
+    }
+}
+function Step-oobeInstallModuleAutopilot {
+    [CmdletBinding()]
+    param ()
+    if ($env:UserName -eq 'defaultuser0') {
+        $Requirement = Import-Module WindowsAutopilotIntune -PassThru -ErrorAction Ignore
+        if (-not $Requirement)
+        {
+            Write-Host -ForegroundColor Cyan 'Install-Module AzureAD,Microsoft.Graph.Intune,WindowsAutopilotIntune'
+            Install-Module WindowsAutopilotIntune -Force
+        }
+    }
+}
+function Step-oobeInstallModuleAzureAd {
+    [CmdletBinding()]
+    param ()
+    if ($env:UserName -eq 'defaultuser0') {
+        $Requirement = Import-Module AzureAD -PassThru -ErrorAction Ignore
+        if (-not $Requirement)
+        {
+            Write-Host -ForegroundColor Cyan 'Install-Module AzureAD'
+            Install-Module AzureAD -Force
+        }
+    }
+}
+function Step-oobeInstallScriptAutopilot {
+    [CmdletBinding()]
+    param ()
+    if ($env:UserName -eq 'defaultuser0') {
+        $Requirement = Get-InstalledScript -Name Get-WindowsAutoPilotInfo -ErrorAction SilentlyContinue
+        if (-not $Requirement)
+        {
+            Write-Host -ForegroundColor Cyan 'Install-Script Get-WindowsAutoPilotInfo'
+            Install-Script -Name Get-WindowsAutoPilotInfo -Force
+        }
+    }
+}
+function Step-oobeRegisterAutopilot {
+    [CmdletBinding()]
+    param (
+        [System.String]
+        $Command
+    )
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeRegisterAutopilot -eq $true)) {
+        Step-oobeInstallModuleAutopilot
+        Step-oobeInstallModuleAzureAd
+        Step-oobeInstallScriptAutopilot
+
+        Write-Host -ForegroundColor Cyan 'Registering Device in Autopilot in new PowerShell window ' -NoNewline
+        $AutopilotProcess = Start-Process PowerShell.exe -ArgumentList "-Command $Command" -PassThru
+        Write-Host -ForegroundColor Green "(Process Id $($AutopilotProcess.Id))"
+        Return $AutopilotProcess
+    }
+}
+function Step-oobeRemoveAppxPackage {
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeRemoveAppxPackage -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Removing Appx Packages'
+        foreach ($Item in $Global:oobeCloud.oobeRemoveAppxPackageName) {
+            if (Get-Command Get-AppxProvisionedPackage) {
+                Get-AppxProvisionedPackage -Online | Where-Object {$_.DisplayName -Match $Item} | ForEach-Object {
+                    Write-Host -ForegroundColor DarkGray $_.DisplayName
+                    if ((Get-Command Remove-AppxProvisionedPackage).Parameters.ContainsKey('AllUsers')) {
+                        Try
+                        {
+                            $null = Remove-AppxProvisionedPackage -Online -AllUsers -PackageName $_.PackageName
+                        }
+                        Catch
+                        {
+                            Write-Warning "AllUsers Appx Provisioned Package $($_.PackageName) did not remove successfully"
+                        }
+                    }
+                    else {
+                        Try
+                        {
+                            $null = Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName
+                        }
+                        Catch
+                        {
+                            Write-Warning "Appx Provisioned Package $($_.PackageName) did not remove successfully"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+function Step-oobeAddCapability {
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeAddCapability -eq $true)) {
+        Write-Host -ForegroundColor Cyan "Add-WindowsCapability"
+        foreach ($Item in $Global:oobeCloud.oobeAddCapabilityName) {
+            $WindowsCapability = Get-WindowsCapability -Online -Name "*$Item*" -ErrorAction SilentlyContinue | Where-Object {$_.State -ne 'Installed'}
+            if ($WindowsCapability) {
+                foreach ($Capability in $WindowsCapability) {
+                    Write-Host -ForegroundColor DarkGray $Capability.DisplayName
+                    $Capability | Add-WindowsCapability -Online | Out-Null
+                }
+            }
+        }
+    }
+}
+function Step-oobeUpdateDrivers {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeUpdateDrivers -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Updating Windows Drivers'
+        if (!(Get-Module PSWindowsUpdate -ListAvailable -ErrorAction Ignore)) {
+            try {
+                Install-Module PSWindowsUpdate -Force
+                Import-Module PSWindowsUpdate -Force
+            }
+            catch {
+                Write-Warning 'Unable to install PSWindowsUpdate Driver Updates'
+            }
+        }
+        if (Get-Module PSWindowsUpdate -ListAvailable -ErrorAction Ignore) {
+            Start-Process PowerShell.exe -ArgumentList "-Command Install-WindowsUpdate -UpdateType Driver -AcceptAll -IgnoreReboot" -Wait
+        }
+    }
+}
+function Step-oobeUpdateWindows {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeUpdateWindows -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Updating Windows'
+        if (!(Get-Module PSWindowsUpdate -ListAvailable)) {
+            try {
+                Install-Module PSWindowsUpdate -Force
+                Import-Module PSWindowsUpdate -Force
+            }
+            catch {
+                Write-Warning 'Unable to install PSWindowsUpdate Windows Updates'
+            }
+        }
+        if (Get-Module PSWindowsUpdate -ListAvailable -ErrorAction Ignore) {
+            #Write-Host -ForegroundColor DarkCyan 'Add-WUServiceManager -MicrosoftUpdate -Confirm:$false'
+            Add-WUServiceManager -MicrosoftUpdate -Confirm:$false | Out-Null
+            #Write-Host -ForegroundColor DarkCyan 'Install-WindowsUpdate -UpdateType Software -AcceptAll -IgnoreReboot'
+            #Install-WindowsUpdate -UpdateType Software -AcceptAll -IgnoreReboot -NotTitle 'Malicious'
+            #Write-Host -ForegroundColor DarkCyan 'Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -IgnoreReboot'
+            Start-Process PowerShell.exe -ArgumentList "-Command Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -IgnoreReboot -NotTitle 'Preview' -NotKBArticleID 'KB890830','KB5005463','KB4481252'" -Wait
+        }
+    }
+}
+function Invoke-Webhook {
+    $BiosSerialNumber = Get-MyBiosSerialNumber
+    $ComputerManufacturer = Get-MyComputerManufacturer
+    $ComputerModel = Get-MyComputerModel
+    
+    $URI = 'https://smartcongmbh.webhook.office.com/webhookb2/0ffa9904-9836-40b9-b469-3825c785fa18@48b60871-5f61-4b52-ab7b-cfbcf6137f61/IncomingWebhook/cd0bb201a7014c7baa859ff09d0fa3c6/87a08ca6-82d7-429a-92df-36c8192fdec0'
+    $JSON = @{
+        "@type"    = "MessageCard"
+        "@context" = "<http://schema.org/extensions>"
+        "title"    = 'OSDCloud Information'
+        "text"     = "The following client has been successfully deployed:<br>
+                    BIOS Serial Number: **$($BiosSerialNumber)**<br>
+                    Computer Manufacturer: **$($ComputerManufacturer)**<br>
+                    Computer Model: **$($ComputerModel)**"
+        } | ConvertTo-JSON
+        
+        $Params = @{
+        "URI"         = $URI
+        "Method"      = 'POST'
+        "Body"        = $JSON
+        "ContentType" = 'application/json'
+        }
+        Invoke-RestMethod @Params | Out-Null
 }
 
-# Upgrade all available Winget packages
-winget upgrade --all --accept-package-agreements --accept-source-agreements
-
-# Disable Bing Search and Cortana
-$searchPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search"
-New-ItemProperty -Path $searchPath -Name "BingSearchEnabled" -Value 0 -PropertyType DWORD -Force | Out-Null
-New-ItemProperty -Path $searchPath -Name "CortanaConsent" -Value 0 -PropertyType DWORD -Force | Out-Null
-
-New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Force
-New-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "EnableDynamicContentInWSB" -PropertyType DWORD -Value 0
-Write-Host "Search Highlights and news & interests removed." -ForegroundColor Green
-
-# Remove unwanted preinstalled apps
-$appsToRemove = @(
-    "Microsoft.WindowsFeedbackHub", "Microsoft.MicrosoftFamily", "Microsoft.WindowsMaps", "Microsoft.Todos", "Microsoft.OneNote",
-    "Microsoft.MicrosoftStickyNotes", "Microsoft.ZuneVideo", "Microsoft.ZuneMusic", "DolbyLaboratories.DolbyAccess", "Microsoft.WindowsCopilot",
-    "king.com.CandyCrushSaga", "Microsoft.PowerAutomateDesktop", "Microsoft.OutlookForWindows", "Microsoft.YourPhone",
-    "MicrosoftCorporationII.QuickAssist", "Microsoft.MicrosoftSolitaireCollection", "Microsoft.MicrosoftMahjong", "Microsoft.MicrosoftMinesweeper",
-    "Microsoft.MicrosoftJigsaw", "Microsoft.BingSports", "Microsoft.BingNews", "Microsoft.BingWeather", "Microsoft.XboxGameOverlay",
-    "Microsoft.XboxGamingOverlay", "Microsoft.Xbox.TCUI", "Microsoft.XboxApp", "Microsoft.XboxSpeechToTextOverlay", "Microsoft.XboxIdentityProvider",
-    "Microsoft.GamingApp", "MSTeams", "Microsoft.MicrosoftOfficeHub"
-)
-foreach ($app in $appsToRemove) {
-    Get-AppxPackage -AllUsers -Name $app | Remove-AppxPackage -ErrorAction SilentlyContinue
-    Get-AppxProvisionedPackage -Online | Where-Object DisplayName -like "*$app*" | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+function Step-oobeRestartComputer {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeRestartComputer -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Build Complete!'
+        Write-Warning 'Device will restart in 30 seconds.  Press Ctrl + C to cancel'
+        Stop-Transcript
+        Start-Sleep -Seconds 30
+        Restart-Computer
+    }
 }
-Write-Host "All specified apps have been removed." -ForegroundColor Green
-
-
-# Remove Microsoft Office
-$odtPath = "$env:ProgramData\provisioning"
-$setupFile = "$odtPath\setup.exe"
-$xmlFile = "$odtPath\remove-office.xml"
-if (Test-Path -Path $setupFile) {
-    Start-Process -FilePath $setupFile -ArgumentList "/configure $xmlFile" -NoNewWindow -Wait
-    Write-Host "Office removal process started." -ForegroundColor Green
-} else {
-    Write-Host "Error: setup.exe not found in $odtPath" -ForegroundColor Red
+function Step-oobeStopComputer {
+    [CmdletBinding()]
+    param ()
+    if (($env:UserName -eq 'defaultuser0') -and ($Global:oobeCloud.oobeStopComputer -eq $true)) {
+        Write-Host -ForegroundColor Cyan 'Build Complete!'
+        Write-Warning 'Device will shutdown in 30 seconds. Press Ctrl + C to cancel'
+        Stop-Transcript
+        Start-Sleep -Seconds 30
+        Stop-Computer
+    }
 }
+#endregion
 
-# Uninstall OneDrive
-$onedrive = "$env:SYSTEMROOT\System32\OneDriveSetup.exe"
-if (Test-Path $onedrive) {
-    Start-Process -FilePath $onedrive -ArgumentList "/uninstall" -NoNewWindow -Wait
-    Write-Host "OneDrive uninstalled." -ForegroundColor Green
-}
-
-
-
-# Set default app associations for newly added users only
-$associationsPath = "$env:ProgramData\provisioning\associations.xml"
-@"
-<?xml version="1.0" encoding="UTF-8"?>
-<DefaultAssociations>
-    <Association Identifier=".htm" ProgId="ChromeHTML" ApplicationName="Google Chrome" />
-    <Association Identifier=".html" ProgId="ChromeHTML" ApplicationName="Google Chrome" />
-    <Association Identifier="http" ProgId="ChromeHTML" ApplicationName="Google Chrome" />
-    <Association Identifier="https" ProgId="ChromeHTML" ApplicationName="Google Chrome" />
-</DefaultAssociations>
-"@ | Out-File $associationsPath -Encoding utf8
-
-dism /online /Import-DefaultAppAssociations:"$associationsPath"
-
-Write-Host "Chrome set as default." -ForegroundColor Green
-
-# Remove provisioning folder
-Remove-Item -Path "$env:ProgramData\provisioning" -Recurse -Force
-Write-Host "Provisioning folder deleted." -ForegroundColor Green
-
-# Remove 'ariadmin' user if it exists
-$user = "ariadmin"
-if (Get-WmiObject Win32_UserAccount -Filter "Name='$user'") {
-    net user $user /delete
-    Write-Host "User '$user' removed successfully." -ForegroundColor Green
-}
-
-#Checks currently connected SSID from Provisioning package and removes it
-$SSID = (netsh wlan show interfaces | Select-String " SSID" | ForEach-Object { ($_ -split ":")[1] -replace "^\s+|\s+$", "" })
-
-if ($SSID -match "^(.*?)(\s{2,}|$)") {
-    $SSID = $matches[1]
-    Write-Host "Connected to SSID: '$SSID'"
-    Write-Host "Forgetting SSID: '$SSID'"
-    netsh wlan delete profile name="$SSID"
-    Write-Host "SSID '$SSID' forgotten."
-} else {
-    Write-Host "No Wi-Fi connection detected."
-}
-
-
-# Play completion sound and restart system
-[console]::beep(400, 2000)
-Write-Host "Provisioning completed! Restarting in 20 seconds..." -ForegroundColor Cyan
-Start-Sleep -Seconds 20
-Restart-Computer -Force
-
+# Execute functions
+Step-oobeExecutionPolicy
+Step-oobeTrustPSGallery
+Step-oobeSetDisplay
+Step-oobeSetDateTime
+Step-oobeRemoveAppxPackage
+Step-oobeAddCapability
+Step-oobeUpdateDrivers
+Step-oobeUpdateWindows
+Step-oobeRestartComputer
+Step-oobeStopComputer
+#=================================================
