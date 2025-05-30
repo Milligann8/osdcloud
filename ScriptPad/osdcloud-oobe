@@ -233,7 +233,7 @@ $UnattendXml = @'
                 <LocalAccounts>
                     <LocalAccount wcm:action="add">
                         <Password>
-                            <Value>Test</Value>
+                            <Value></Value>
                             <PlainText>true</PlainText>
                         </Password>
                         <Description>Local Administrator Account for Ari</Description>
@@ -245,7 +245,7 @@ $UnattendXml = @'
 
             <AutoLogon>
                 <Password>
-                    <Value>Test</Value>
+                    <Value></Value>
                     <PlainText>true</PlainText>
                 </Password>
                 <Enabled>true</Enabled>
