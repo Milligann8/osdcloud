@@ -28,33 +28,6 @@ Date			By			Comments
 
 #>
 
-if (-NOT (Test-Path 'X:\OSDCloud\Logs')) {
-    New-Item -Path 'X:\OSDCloud\Logs' -ItemType Directory -Force -ErrorAction Stop | Out-Null
-}
-
-#Transport Layer Security (TLS) 1.2
-Write-Host -ForegroundColor Green "Transport Layer Security (TLS) 1.2"
-[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-#[System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultCredentials
-
-$Transcript = "$((Get-Date).ToString('yyyy-MM-dd-HHmmss'))-Start-OSDCloudLogic.log"
-Start-Transcript -Path (Join-Path "X:\OSDCloud\Logs" $Transcript) -ErrorAction Ignore | Out-Null
-
-#================================================
-Write-Host -ForegroundColor DarkGray "========================================================================="
-Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
-Write-Host -ForegroundColor Cyan "[PreOS] Update Module"
-#================================================
-# Write-Host -ForegroundColor Green "Updating OSD PowerShell Module"
-# Install-Module OSD -Force
-
-Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
-Write-Host -ForegroundColor Green "Importing OSD PowerShell Module"
-Import-Module OSD -Force
-
-Write-Host -ForegroundColor DarkGray "$((Get-Date).ToString('yyyy-MM-dd-HHmmss')) " -NoNewline
-Write-Host -ForegroundColor Green "PSCloudScript at functions.osdcloud.com"
-Invoke-Expression (Invoke-RestMethod -Uri functions.osdcloud.com)
 
 #region Helper Functions
 function Write-DarkGrayDate {
@@ -114,10 +87,15 @@ function Write-SectionSuccess {
 Write-SectionHeader "[OS] Params and Start-OSDCloud"
 #=======================================================================
 
-    $OSName = 'Windows 11 24H2 x64'
-    $OSEdition = 'Pro'
-    $OSActivation = 'Retail'
-    $OSLanguage = 'en-us'
+$Product = (Get-MyComputerProduct)
+$Model = (Get-MyComputerModel)
+$Manufacturer = (Get-CimInstance -ClassName Win32_ComputerSystem).Manufacturer
+$OSVersion = 'Windows 11' #Used to Determine Driver Pack
+$OSReleaseID = '24H2' #Used to Determine Driver Pack
+$OSName = 'Windows 11 24H2 x64'
+$OSEdition = 'Pro'
+$OSActivation = 'Retail'
+$OSLanguage = 'en-us'
 
 #Set OSDCloud Vars
 $Global:MyOSDCloud = [ordered]@{
@@ -135,15 +113,30 @@ $Global:MyOSDCloud = [ordered]@{
 
 }
 
+$DriverPack = Get-OSDCloudDriverPack -Product $Product -OSVersion $OSVersion -OSReleaseID $OSReleaseID
 
-Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage -ZTI -Firmware
-#endregion
+if ($DriverPack){
+    $Global:MyOSDCloud.DriverPackName = $DriverPack.Name
+}
+
+
+Write-SectionHeader "OSDCloud Variables"
+Write-Output $Global:MyOSDCloud
+
+#Update Files in Module that have been updated since last PowerShell Gallery Build (Testing Only)
+#$ModulePath = (Get-ChildItem -Path "$($Env:ProgramFiles)\WindowsPowerShell\Modules\osd" | Where-Object {$_.Attributes -match "Directory"} | Select-Object-Object -Last 1).fullname
+#import-module "$ModulePath\OSD.psd1" -Force
+
+#Launch OSDCloud
+Write-SectionHeader -Message "Starting OSDCloud"
+write-host "Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage"
+
+Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage -ZTI -FIRMWARE
+
+Write-SectionHeader -Message "OSDCloud Process Complete, Running Custom Actions From Script Before Reboot"
 
 
 
-#================================================
-Write-SectionHeader "[PostOS] AutopilotOOBE Configuration"
-#================================================
 
 If (!(Test-Path "C:\ProgramData\OSDeploy")) {
     New-Item "C:\ProgramData\OSDeploy" -ItemType Directory -Force | Out-Null
