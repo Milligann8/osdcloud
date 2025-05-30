@@ -7,7 +7,6 @@
     - Update OSD PowerShell Module
     - Import OSD PowerShell Module
     - Install and configure firmware updates
-    - Define Autopilot attributes
     - Setup Unattend.xml for specialize phase
     - Execute OOBE and cleanup scripts
     - Move OSDCloud logs to IntuneManagementExtension
@@ -140,52 +139,7 @@ $Global:MyOSDCloud = [ordered]@{
 Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage -ZTI -Firmware
 #endregion
 
-#================================================
-Write-DarkGrayHost "Define Computername"
-$Serial = Get-WmiObject Win32_bios | Select-Object -ExpandProperty SerialNumber
-$lastFourChars = $serial.Substring($serial.Length - 4)
-#$AssignedComputerName = "NB-2$lastFourChars"
 
-$ChassisType = (Get-WmiObject -Query "SELECT * FROM Win32_SystemEnclosure").ChassisTypes
-$HyperV = Get-WmiObject -Query "SELECT * FROM Win32_ComputerSystem WHERE Manufacturer LIKE '%Microsoft Corporation%' AND Model LIKE '%Virtual Machine%'"
-$VMware = Get-WmiObject -Query "SELECT * FROM Win32_ComputerSystem WHERE Manufacturer LIKE '%VMware%' AND Model LIKE '%VMware%'"
-
-If ($HyperV -or $VMware) {
-    $HW         = "VM"
-}
-
-If ($ChassisType -eq "8" -or`
-    $ChassisType -eq "9" -or`
-    $ChassisType -eq "10" -or`
-    $ChassisType -eq "11" -or`
-    $ChassisType -eq "12" -or`
-    $ChassisType -eq "14" -or`
-    $ChassisType -eq "18" -or`
-    $ChassisType -eq "21" -or`
-    $ChassisType -eq "31") {
-    $HW = "NB"
-}
-
-elseif ($ChassisType -eq "3" -or`
-    $ChassisType -eq "4" -or`
-    $ChassisType -eq "5" -or`
-    $ChassisType -eq "6" -or`
-    $ChassisType -eq "7" -or`
-    $ChassisType -eq "15" -or`
-    $ChassisType -eq "16" -or`
-    $ChassisType -eq "35") {
-    $HW = "PC"
-}
-
-If (!($HW)) {
-    $AssignedComputerName = "Arivo-$Serial"
-}
-else {
-    $AssignedComputerName = "$HW-2$lastFourChars"        
-}
-
-
-Write-Host -ForegroundColor Yellow "Computername: $AssignedComputerName"
 
 #================================================
 Write-SectionHeader "[PostOS] AutopilotOOBE Configuration"
