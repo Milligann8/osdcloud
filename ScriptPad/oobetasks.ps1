@@ -8,4 +8,4 @@ $serial = (Get-WmiObject -Class Win32_BIOS).SerialNumber.Trim()
 $newName = "$company-$serial"
 
 # Rename the computer
-Rename-Computer -NewName $newName -Force -Restart
+Rename-Computer -NewName $newName -Force
