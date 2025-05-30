@@ -220,6 +220,17 @@ Write-DarkGrayHost "Use-WindowsUnattend -Path 'C:\' -UnattendPath $UnattendPath"
 Use-WindowsUnattend -Path 'C:\' -UnattendPath $UnattendPath | Out-Null
 #endregion
 
+# Define your company prefix
+$company = "Arivo"
+
+# Get the device serial number
+$serial = (Get-WmiObject -Class Win32_BIOS).SerialNumber.Trim()
+
+# Combine into new hostname
+$newName = "$company-$serial"
+
+# Rename the computer
+Rename-Computer -NewName $newName -Force
 
 #region OOBE Tasks
 #================================================
@@ -228,7 +239,6 @@ Write-SectionHeader "[PostOS] OOBE CMD Command Line"
 Write-DarkGrayHost "Downloading Scripts for OOBE and specialize phase"
 
 Invoke-RestMethod https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/oobetasks.ps1 | Out-File -FilePath 'C:\Windows\Setup\scripts\oobe.ps1' -Encoding ascii -Force
-Invoke-RestMethod https://raw.githubusercontent.com/Milligann8/osdcloud/refs/heads/main/ScriptPad/cleanup.ps1 | Out-File -FilePath 'C:\Windows\Setup\scripts\cleanup.ps1' -Encoding ascii -Force
 
 $OOBEcmdTasks = @'
 @echo off
